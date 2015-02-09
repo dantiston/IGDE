@@ -1,3 +1,9 @@
 from django.test import TestCase
 
-# Create your tests here.
+class AceViewsTests(TestCase):
+    
+    def testAceParser(self):
+        """
+        Test that the ACE parser view works
+        """
+        pass

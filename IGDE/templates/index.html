@@ -16,10 +16,11 @@
           var entry_el = $('#comment');
           socket.on('message', function(message) {
               //Escape HTML characters
-              var data = message.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+              //var data = message.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+              data = message.replace(/&/g,"&amp;")
 
               //Append message to the bottom of the list
-              $('#parses').append('<li>' + data + '</li>');
+              $('#parses').append(data);
               window.scrollBy(0, 10000000000);
               entry_el.focus();
           });

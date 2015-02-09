@@ -58,8 +58,6 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-SITE_ID = 1
-
 SITE_ROOT = os.path.dirname(os.path.realpath(__file__))
 
 MEDIA_ROOT = os.path.join(SITE_ROOT, 'media')
@@ -167,3 +165,6 @@ LOGGING = {
         },
     }
 }
+
+
+TEST_RUNNER = 'django.test.runner.DiscoverRunner'
