@@ -19,7 +19,7 @@
               var data = message.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
 
               //Append message to the bottom of the list
-              $('#comments').append('<li>' + data + '</li>');
+              $('#parses').append('<li>' + data + '</li>');
               window.scrollBy(0, 10000000000);
               entry_el.focus();
           });
@@ -41,10 +41,7 @@
 </script>
 </head>
 <body>
-  <ul id="comments">
-    {% for comment in comments %}
-    <li>{{comment.user}}: {{comment.text}}</li>
-    {% endfor %}
+  <ul id="parses">
   </ul>
   <input type="text" id="comment" name="comment" />
 </body>

@@ -27,12 +27,14 @@ io.sockets.on('connection', function (socket) {
     sub.on('message', function(channel, message){
 	socket.send(message);
     });
+
     //Client is sending message through socket.io
     socket.on('send_message', function (message) {
 	values = querystring.stringify({
 	    comment: message,
 	    sessionid: socket.handshake.cookie['sessionid'],
 	});
+
 	var options = {
 	    host: 'localhost',
 	    port: 3000,
@@ -43,6 +45,7 @@ io.sockets.on('connection', function (socket) {
 		'Content-Length': values.length
 	    }
 	};
+
 	//Send message to Django server
 	var req = http.get(options, function(res){
 	    res.setEncoding('utf8');
