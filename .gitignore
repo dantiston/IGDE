@@ -4,3 +4,5 @@ __pycache__/
 # Ignore auto-saves
 *~
 \#*\#
+# Ignore log files
+*.log

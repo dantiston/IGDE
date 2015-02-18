@@ -5,10 +5,18 @@ from django.http import HttpResponse, HttpResponseServerError
 from django.views.decorators.csrf import csrf_exempt
 from django.contrib.sessions.models import Session
 from django.contrib.auth.decorators import login_required
+
+import logging
     
 import redis
 
-from delphin.interfaces import ace
+from delphin.interfaces.ace import InteractiveAce
+
+# Initiate ACE
+# TODO: Move this to being attached to a user
+ace = InteractiveAce("/home/dantiston/delphin/erg.dat")
+
+logger = logging.getLogger(__name__)
 
 @login_required
 def home(request):
@@ -22,27 +30,28 @@ def node_api(request):
         session = Session.objects.get(session_key=request.POST.get('sessionid'))
         user_id = session.get_decoded().get('_auth_user_id')
         user = User.objects.get(id=user_id)
-            
+
         # Parse text
         text = request.POST.get('comment')
-        parse = ace.parse("/home/dantiston/delphin/erg.dat", text)
+        logger.debug("TEXT: %s" % text)
+        parse = ace.parse(text)
+        logger.debug("PARSE: {}".format(str(parse)))
         results = parse['RESULTS']
         html = []
         for result in results:
             tree = result['DERIV']
             mrs = result['MRS']
             html.append((tree, mrs))
-        #     Comments.objects.create(user=user, text=text, tree=tree, mrs=mrs)
-        #Comments.objects.create(user=user, text=str(parse))
 
-        resultFormat = "<ul><li>%s</li><li>%s</li></ul>"
-        result = "<ul>%s</ul>" % "".join(resultFormat % pair for pair in html)
+        result = "<h3>{}</h3>".format(text)
+        resultFormat = "<li><ul><li>%s</li><li>%s</li></ul></li>"
+        result += "<ul>{}</ul>".format("".join(resultFormat % pair for pair in html))
 
-        # Once comment has been created post it to the chat channel
+        # Once datum has been parsed, send it back to user
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
-        #r.publish('chat', request.POST.get('comment'))
         r.publish('chat', result)
 
         return HttpResponse("Everything worked :)")
     except Exception as e:
+        logger.debug(str(e))
         return HttpResponseServerError(str(e))

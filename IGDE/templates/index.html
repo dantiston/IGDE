@@ -15,13 +15,13 @@
 
           var entry_el = $('#comment');
           socket.on('message', function(message) {
-              //Escape HTML characters
+              // Escape HTML characters
               //var data = message.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
               data = message.replace(/&/g,"&amp;")
 
-              //Append message to the bottom of the list
-              $('#parses').append(data);
-              window.scrollBy(0, 10000000000);
+              // Append message to the bottom of the list
+              $('#parses').prepend(data);
+              window.scrollBy(0, -10000000000);
               entry_el.focus();
           });
 
@@ -42,8 +42,8 @@
 </script>
 </head>
 <body>
+  <input type="text" id="comment" name="comment" />
   <ul id="parses">
   </ul>
-  <input type="text" id="comment" name="comment" />
 </body>
 </html>
