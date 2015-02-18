@@ -23,12 +23,12 @@ io.configure(function(){
 });
 
 io.sockets.on('connection', function (socket) {
-    //Grab message from Redis and send to client
+    // Grab message from Redis and send to client
     sub.on('message', function(channel, message){
 	socket.send(message);
     });
 
-    //Client is sending message through socket.io
+    // Client is sending message through socket.io
     socket.on('send_message', function (message) {
 	values = querystring.stringify({
 	    comment: message,
@@ -46,10 +46,9 @@ io.sockets.on('connection', function (socket) {
 	    }
 	};
 
-	//Send message to Django server
+	// Send message to Django server
 	var req = http.get(options, function(res){
 	    res.setEncoding('utf8');
-	    //Print out error message
 	    res.on('data', function(message){
 		if(message != 'Everything worked :)'){
 		    console.log('Message: ' + message);
