@@ -33,16 +33,12 @@ def node_api(request):
 
         # Parse text
         text = request.POST.get('comment')
-        parse = ace.parse(text)
-        results = parse['RESULTS']
-        html = []
-        for result in results:
-            tree = result['DERIV']
-            html.append(tree)
+        results = ace.parse(text)['RESULTS']
+        results = (item.output_HTML() for item in results)
 
         result = "<h3>{}</h3>".format(text)
         resultFormat = "<li>{}</li>"
-        result += "<ul>{}</ul>".format("".join(resultFormat.format(tree) for tree in html))
+        result += "<ul>{}</ul>".format("".join(resultFormat.format(tree) for tree in results))
 
         # Once datum has been parsed, send it back to user
         r = redis.StrictRedis(host='localhost', port=6379, db=0)

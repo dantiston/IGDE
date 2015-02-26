@@ -27,6 +27,22 @@ $(document).ready(function(){
     // Get element
     var entry_el = $('#comment');
 
+    // On submit, send message to server
+    entry_el.keypress(function(event) {
+
+        //When enter is pressed send input value to node server
+        if (event.keyCode != 13) return;
+	
+        var msg = entry_el.prop('value');
+        if (msg) {
+            socket.emit('send_message', msg, function(data){
+                console.log(data);
+            });
+            //Clear input value
+            entry_el.attr('value', '');
+        }
+    });
+
     // On message from server, add message to list
     socket.on('message', function(message) {
         // Escape HTML characters
@@ -36,20 +52,5 @@ $(document).ready(function(){
         $('#parses').prepend(data);
         window.scrollBy(0, -10000000000);
         entry_el.focus();
-    });
-
-    // On submit, send message to server
-    entry_el.keypress(function(event){
-        //When enter is pressed send input value to node server
-        if(event.keyCode != 13) return;
-	
-        var msg = entry_el.attr('value');
-        if(msg){
-            socket.emit('send_message', msg, function(data){
-                console.log(data);
-            });
-            //Clear input value
-            entry_el.attr('value', '');
-        }
     });
 });

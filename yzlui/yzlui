@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Basic LUI wrapper for ACE. Need to connect all the plumbing somehow!
+
+/bin/cat

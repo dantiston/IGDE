@@ -3,3 +3,7 @@
 __pycache__/
 # Ignore auto-saves
 *~
+# Ignore log files
+ *.log
+# Ignore node modules
+node_modules
