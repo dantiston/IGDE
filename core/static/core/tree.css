@@ -1,0 +1,173 @@
+/*
+ * From:
+ * http://thecodeplayer.com/walkthrough/css3-family-tree
+ * 
+ * Adapted for IGDE
+ * 
+ */
+
+/* Top level elements (above derivationTrees, below #parses) */
+
+ul#parses ul li {
+    list-style-type: none
+}
+
+ul#parses h3, ul#parses h5 {
+    display:inline;
+}
+
+/* derivationTree styles */
+
+.derivationTree, .derivationTree * {
+    margin: 0;
+    padding: 0;
+}
+
+.derivationTree, .derivationTree > ul {
+    display:inline-block;
+}
+
+.derivationTree ul {
+    padding-top: 15px;
+    position: relative;
+	
+    transition: all 0.1s;
+    -webkit-transition: all 0.1s;
+    -moz-transition: all 0.1s;
+}
+
+.derivationTree li {
+    float: left;
+    text-align: center;
+    list-style-type: none;
+    position: relative;
+    padding: 15px 5px 0 5px;
+    
+    transition: all 0.1s;
+    -webkit-transition: all 0.1s;
+    -moz-transition: all 0.1s;
+}
+
+/*We will use ::before and ::after to draw the connectors*/
+
+.derivationTree li::before, .derivationTree li::after {
+    content: '';
+    
+    position: absolute;
+    top: 0;
+    right: 50%;
+    
+    width: 50%;
+    height: 15px;
+    
+    border-top: 1px solid #ccc;
+}
+
+.derivationTree li::after{
+    right: auto;
+    left: 50%;
+    border-left: 1px solid #ccc;
+}
+
+.derivationTree li.terminal::after{
+    width:100%;
+}
+
+/* Terminal connectors are higher */
+.derivationTree li.terminal::before, .derivationTree li.terminal::after {
+    top: -16px;
+}
+
+/*We need to remove left-right connectors from elements without any siblings terminals*/
+.derivationTree li:only-child::after, .derivationTree li:only-child::before, .derivationTree li:only-child:before, .derivationTree li:only-child::after {
+    display: none;
+}
+
+/*Remove space from the top of single children and terminals */
+.derivationTree li:only-child, .derivationTree li.terminal {
+    padding-top: 0;
+}
+
+/*Remove left connector from first child and right connector from last child*/
+.derivationTree li:first-child::before, .derivationTree li:last-child::after{
+    border: 0 none;
+}
+
+/*Adding back the vertical connector to the last nodes*/
+.derivationTree li:last-child::before{
+    border-right: 1px solid #ccc;
+    border-radius: 0 5px 0 0;
+    -webkit-border-radius: 0 5px 0 0;
+    -moz-border-radius: 0 5px 0 0;
+}
+.derivationTree li:first-child::after{
+    border-radius: 5px 0 0 0;
+    -webkit-border-radius: 5px 0 0 0;
+    -moz-border-radius: 5px 0 0 0;
+}
+
+/*Time to add downward connectors from parents*/
+.derivationTree ul ul::before{
+    content: '';
+    position: absolute; top: 0; left: 50%;
+    border-left: 1px solid #ccc;
+    width: 0;
+    height: 15px;
+}
+
+.tree ul ul::before li.terminal:: {
+    border: none;
+}
+
+.derivationTree li p {
+    border: 1px solid #ccc;
+    padding: 5px 10px;
+    text-decoration: none;
+    color: #666;
+    font-family: arial, verdana, tahoma;
+    font-size: 11px;
+    display: inline-block;
+    
+    border-radius: 5px;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+    
+    transition: all 0.1s;
+    -webkit-transition: all 0.1s;
+    -moz-transition: all 0.1s;
+}
+
+
+/* Unary rules */
+.derivationTree li:only-child {
+    padding: 0;
+}
+
+/* Terminals */
+/** Terminals with siblings get extra margin **/
+.derivationTree li.terminal {
+    margin: 15px 5px 0 5px;
+}
+
+.derivationTree li.terminal:only-child {
+    margin: 0px;
+}
+
+.derivationTree li.terminal p {
+    border: none;
+    display: block;
+}
+
+.derivationTree li.terminal {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    -webkit-border-radius: 5px;
+    -moz-border-radius: 5px;
+}
+
+/* Hover effect */
+.derivationTree li p:hover, .derivationTree li.terminal:hover {
+    background: #c8e4f8; 
+    color: #000;
+}
+

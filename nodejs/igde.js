@@ -42,6 +42,7 @@ io.sockets.on('connection', function (socket) {
 	    sessionid: socket.handshake.cookie['sessionid'],
 	});
 
+	// Set up message to connect to Django view at /node_api
 	var options = {
 	    host: 'localhost',
 	    port: 3000,
@@ -65,4 +66,31 @@ io.sockets.on('connection', function (socket) {
 	req.write(values);
 	req.end();
     });
+
+    // Close ACE on disconnect
+    // socket.on('disconnect', function() {
+    // 	var options = {
+    // 	    host: 'localhost',
+    // 	    port: 3000,
+    // 	    path: '/node_api',
+    // 	    method: 'POST',
+    // 	    headers: {
+    // 		'Content-Type': 'application/x-www-form-urlencoded',
+    // 		'Content-Length': values.length
+    // 	    }
+    // 	};
+
+    // 	// Send message to Django server
+    // 	var req = http.get(options, function(res){
+    // 	    res.setEncoding('utf8');
+    // 	    res.on('data', function(message){
+    // 		if(message != 'Everything worked :)'){
+    // 		    console.log('Message: ' + message);
+    // 		}
+    // 	    });
+    // 	});
+    // 	req.write(values);
+    // 	req.end();
+    // });
+
 });

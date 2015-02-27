@@ -39,7 +39,7 @@ $(document).ready(function(){
                 console.log(data);
             });
             //Clear input value
-            entry_el.attr('value', '');
+            entry_el.prop('value', '');
         }
     });
 
