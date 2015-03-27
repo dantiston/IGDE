@@ -11,6 +11,7 @@ import logging
 import redis
 
 from delphin.interfaces.ace import InteractiveAce
+from delphin.derivation import Derivation
 
 # Initiate ACE
 # TODO: Move this to being attached to a user
@@ -34,7 +35,7 @@ def node_api(request):
         # Parse text
         text = request.POST.get('comment')
         results = ace.parse(text)['RESULTS']
-        html = (item.output_HTML() for item in results)
+        html = (Derivation(item).output_HTML() for item in results)
 
         result = "<h3>{}</h3><h5>  ({} parses)</h5>".format(text, len(results))
         resultFormat = "<li>{}</li>"
