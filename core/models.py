@@ -45,16 +45,16 @@ class IgdeDerivation(Derivation):
             <div class="derivationTree" id={TREE_ID}>
                 <ul>
                     <li>
-                        <p id={CHART_ID}{TITLE}>{PARENT_LABEL}</p>
+                        <p id={EDGE_ID}{TITLE}>{PARENT_LABEL}</p>
                         <ul>
                             <li class="terminal">
-                                <p id={CHART_ID} title="{CHART_ID}: {RULE_NAME}">{LABEL}</p>
+                                <p id={EDGE_ID} title="{EDGE_ID}: {RULE_NAME}">{LABEL}</p>
                                 <p>{TOKEN}</p>
                             </li>
                         </ul>
                     </li>
                     <li class="terminal">
-                        <p id={CHART_ID} title="{CHART_ID}: {RULE_NAME}">{LABEL}</p>
+                        <p id={EDGE_ID} title="{EDGE_ID}: {RULE_NAME}">{LABEL}</p>
                         <p>{TOKEN}</p>
                     </li>
                 </ul>
@@ -68,12 +68,12 @@ class IgdeDerivation(Derivation):
         title_text=False to disable this.
         """
         top_formatter = "<div class=\"derivationTree\"{tree_ID}><ul>{values}</ul></div>"
-        formatter = "<li{CLASS}><p{CHART_ID}{TITLE}>{LABEL}</p>{TOKEN}{CHILDREN}</li>"
+        formatter = "<li{CLASS}><p{EDGE_ID}{TITLE}>{LABEL}</p>{TOKEN}{CHILDREN}</li>"
         # Add token if applicable
         values = {
             "CLASS": " class=\"terminal\"" if not self.children else "",
-            "CHART_ID": " id={}".format(self.chart_ID),
-            "TITLE": " title=\"{}: {}\"".format(self.chart_ID, self.rule_name) if title_text else "",
+            "EDGE_ID": " id={}".format(self.edge_ID),
+            "TITLE": " title=\"{}: {}\"".format(self.edge_ID, self.rule_name) if title_text else "",
             "LABEL": self.label,
             "TOKEN": "<p>{}</p>".format(self.token) if self.token else "",
             "CHILDREN": "<ul>{}</ul>".format("".join(child.output_HTML(top=False, title_text=title_text) for child in self.children)) if self.children else ""

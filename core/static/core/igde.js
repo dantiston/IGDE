@@ -15,16 +15,7 @@ $(document).ready(function(){
     });
     
     /*** PARSING ***/
-    // Get element
-    var entry_el = $('#comment');
-
-    // On submit, request parse from the server
-    // TODO: add button, add this function to onclick for that button
-    entry_el.keypress(function(event) {
-
-        //When enter is pressed send input value to node server
-        if (event.keyCode != 13) return;
-	
+    function sendParse(entry_el) {
         var msg = entry_el.prop('value');
         if (msg) {
             socket.emit('parse', msg, function(data) {
@@ -33,7 +24,22 @@ $(document).ready(function(){
             //Clear input value
             entry_el.prop('value', '');
         }
+    }
+
+    // Get element
+    var entry_element = $('#comment');
+    var entry_button = $('button');
+
+    // On submit, request parse from the server
+    // TODO: add button, add this function to onclick for that button
+    entry_element.keypress(function(event) {
+        if (event.keyCode != 13) return;
+	sendParse(entry_element);
     });
+    entry_button.click(function(event) {
+	sendParse(entry_element);
+    });
+
 
     /*** REQUESTING MRS/AVM ***/
     // On click, request MRS/AVM from the server
@@ -72,6 +78,6 @@ $(document).ready(function(){
         // Append message to the top of the list
         $('#parses').prepend(data);
         window.scrollTo(0, 0);
-        entry_el.focus();
+        entry_element.focus();
     });
 });

@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.3/themes/smoothness/jquery-ui.css" />
     <link href="static/core/tree.css" rel="stylesheet"/>
     <link href="static/core/mrs.css" rel="stylesheet"/>
+    <link href="static/core/igde.css" rel="stylesheet"/>
 {% endblock css %}
 
 {% block head_js %}
@@ -31,21 +32,16 @@
             <h1>Integrated Grammar Development Environment</h1>
           </div>
 	  <div>
-	    <input type="text" id="comment"></input>
+	    <input type="text" id="comment" class="large-10 small-2 columns"></input>
+	    <button type="button" class="large-2 small-2 columns button secondary">analyze</button>
 	  </div>
         </div>
       </div>
        
       <div class="row">
         <div class="large-12 columns">
-
-      	  <!-- BEGIN TEMPLATE -->
 	  <ul id="parses">
-
-	    <hr/>
 	  </ul>
-      	  <!-- END TEMPLATE -->
-           
         </div>
       </div>
      

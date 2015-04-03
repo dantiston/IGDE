@@ -1,0 +1,10 @@
+
+input {
+    width: 83.3333% !important;
+}
+
+button {
+    padding-top: 0.55em !important;
+    padding-bottom: 0.55em !important;
+    margin: 0 0 0 5px;
+}

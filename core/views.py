@@ -58,7 +58,7 @@ def parse(request):
 
         result = "<h3>{}</h3><h5>  ({} parses)</h5>".format(text, len(results))
         resultFormat = "<li>{}</li>"
-        result += "<ul>{}</ul>".format("".join(resultFormat.format(item) for item in html))
+        result += "<ul>{}</ul><hr/>".format("".join(resultFormat.format(item) for item in html))
 
         # Once datum has been parsed, send it back to user
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
@@ -73,11 +73,12 @@ def parse(request):
 
 @csrf_exempt # TODO: consider removing this?
 def request(request):
-    error = ValueError("Request values should be in the form \"request X Y what\"")
     legal_commands = ("mrs simple", "avm")
     simple_names = {"mrs simple":"mrs"}
     try:
         text = request.POST.get('comment')
+        error = ValueError("Request values should be in the form \"request X Y what\", not \"{}\"".format(text))
+
         try:
             sort, tree_ID, edge_ID, command = text.split(None, 3)
             tree_ID, edge_ID = int(tree_ID), int(edge_ID)
@@ -98,17 +99,11 @@ def request(request):
         #user = User.objects.get(id=user_id)
 
         # Send request to parser
-        lui.request_mrs(ace, 1, 1)
+        lui.request_mrs(ace, tree_ID, edge_ID)
         mrs = lui.load_mrs(lui.receive_mrs(ace))
-
-        # mrs = lui.receive_mrs(ace)        
-        # r = redis.StrictRedis(host='localhost', port=6379, db=0)
-        # r.publish('chat', mrs)
-        # return HttpResponse("Everything worked :)")
-
         html = IgdeXmrs(mrs).output_HTML()
 
-        result = "<h5>({} for tree {})</h5><ul><li>{}</li></ul>".format(command, tree_ID, html)
+        result = "<h5>({} for tree {})</h5><ul><li>{}</li></ul><hr/>".format(command, tree_ID, html)
 
         # Once datum has been parsed, send it back to user
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
