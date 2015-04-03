@@ -6,8 +6,10 @@ The IGDE is built with [Django](https://www.djangoproject.com), combining Django
 Processing with ACE is handled through [PyDelphin](https://github.com/goodmami/pydelphin).
 
 # VERSION HISTORY
-v0.2: core functionality, parsing to derivation trees and MRS tables. Moved model HTML code from PyDelphin to models.py.
+v0.2: core functionality, parsing to derivation trees and MRS tables. Moved model HTML code from PyDelphin to models.py
+
 v0.1: basic UI, parsing.
+
 
 # RUNNING IGDE
 *NOTE: This section is under construction while the IGDE is under initial development.*
