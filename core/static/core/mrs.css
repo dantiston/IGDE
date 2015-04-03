@@ -1,0 +1,16 @@
+/*
+ * Integrated Grammar Development Environment
+ * @author: T.J. Trimble
+ *
+ */
+
+table.mrsRelation {
+    display: inline-table;
+    margin: 5px 5px;
+}
+
+table.mrsInnerTable {
+    display: inline;
+    background: none;
+    border: none;
+}

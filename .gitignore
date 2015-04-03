@@ -1,12 +1,7 @@
-# Ignore the compiled python files
-*.pyc
-__pycache__/
 # Ignore auto-saves
 *~
-# Ignore log files
-*.log
-# Ignore node modules
-node_modules
+\#*\#
+
 # Ignore collected static files
 IGDE/static/
 
@@ -21,6 +16,7 @@ __pycache__/
 *.so
 
 # Distribution / packaging
+node_modules/
 bin/
 build/
 develop-eggs/

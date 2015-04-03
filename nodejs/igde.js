@@ -35,18 +35,22 @@ io.sockets.on('connection', function (socket) {
 	socket.send(message);
     });
 
+    // TODO: Set up for parse, request, generate, and unify commands
+
     // Client is sending message through socket.io
-    socket.on('send_message', function (message) {
+    /*** PARSE ***/
+    socket.on('parse', function (message) {
+	// message should be something like "I like dogs."
 	values = querystring.stringify({
 	    comment: message,
 	    sessionid: socket.handshake.cookie['sessionid'],
 	});
 
-	// Set up message to connect to Django view at /node_api
+	// Set up message to connect to Django view at /parse
 	var options = {
 	    host: 'localhost',
 	    port: 3000,
-	    path: '/node_api',
+	    path: '/parse',
 	    method: 'POST',
 	    headers: {
 		'Content-Type': 'application/x-www-form-urlencoded',
@@ -67,30 +71,37 @@ io.sockets.on('connection', function (socket) {
 	req.end();
     });
 
-    // Close ACE on disconnect
-    // socket.on('disconnect', function() {
-    // 	var options = {
-    // 	    host: 'localhost',
-    // 	    port: 3000,
-    // 	    path: '/node_api',
-    // 	    method: 'POST',
-    // 	    headers: {
-    // 		'Content-Type': 'application/x-www-form-urlencoded',
-    // 		'Content-Length': values.length
-    // 	    }
-    // 	};
+    /*** REQUEST ***/
+    socket.on('request', function (message) {
+	// message should be something like "browse 1 1 mrs simple"
+	values = querystring.stringify({
+	    comment: message,
+	    sessionid: socket.handshake.cookie['sessionid'],
+	});
 
-    // 	// Send message to Django server
-    // 	var req = http.get(options, function(res){
-    // 	    res.setEncoding('utf8');
-    // 	    res.on('data', function(message){
-    // 		if(message != 'Everything worked :)'){
-    // 		    console.log('Message: ' + message);
-    // 		}
-    // 	    });
-    // 	});
-    // 	req.write(values);
-    // 	req.end();
-    // });
+	// Set up message to connect to Django view at /request
+	var options = {
+	    host: 'localhost',
+	    port: 3000,
+	    path: '/request',
+	    method: 'POST',
+	    headers: {
+		'Content-Type': 'application/x-www-form-urlencoded',
+		'Content-Length': values.length
+	    }
+	};
+
+	// Send message to Django server
+	var req = http.get(options, function(res) {
+	    res.setEncoding('utf8');
+	    res.on('data', function(message){
+		if(message != 'Everything worked :)'){
+		    console.log('Message: ' + message);
+		}
+	    });
+	});
+	req.write(values);
+	req.end();
+    });
 
 });

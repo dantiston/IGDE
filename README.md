@@ -6,6 +6,7 @@ The IGDE is built with [Django](https://www.djangoproject.com), combining Django
 Processing with ACE is handled through [PyDelphin](https://github.com/goodmami/pydelphin).
 
 # VERSION HISTORY
+v0.2: core functionality, parsing to derivation trees and MRS tables. Moved model HTML code from PyDelphin to models.py.
 v0.1: basic UI, parsing.
 
 # RUNNING IGDE
@@ -57,4 +58,3 @@ sudo python setup.py install # install pydelphin
 ```
 
 The current version of the IGDE relies on a static ACE-compiled grammar image. I recommend to store this at `~/delphin/erg.dat`. You can compile your own grammar image with ACE or download a pre-compiled image. More info from the [ACE website](http://sweaglesw.org/linguistics/ace/).
-
