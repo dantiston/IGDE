@@ -41,7 +41,7 @@ def home(request):
     comments = Comments.objects.select_related().all()[0:100]
     return render(request, 'index.html', locals())
 
-@csrf_exempt # TODO: consider removing this?
+@csrf_exempt # TODO: consider removing csrf_exempt?
 def parse(request):
     try:
         # Get User from sessionid
@@ -71,9 +71,9 @@ def parse(request):
         return HttpResponseServerError(str(e))
 
 
-@csrf_exempt # TODO: consider removing this?
+@csrf_exempt # TODO: consider removing csrf_exempt?
 def request(request):
-    legal_commands = ("mrs simple", "avm")
+    legal_commands = ("mrs simple","avm")
     simple_names = {"mrs simple":"mrs"}
     try:
         text = request.POST.get('comment')
@@ -103,7 +103,9 @@ def request(request):
         mrs = lui.load_mrs(lui.receive_mrs(ace))
         html = IgdeXmrs(mrs).output_HTML()
 
-        result = "<h5>({} for tree {})</h5><ul><li>{}</li></ul><hr/>".format(command, tree_ID, html)
+        command_name = simple_names[command] if command in simple_names else command
+
+        result = "<h5>({} for tree {})</h5><ul><li>{}</li></ul><hr/>".format(command_name, tree_ID, html)
 
         # Once datum has been parsed, send it back to user
         r = redis.StrictRedis(host='localhost', port=6379, db=0)

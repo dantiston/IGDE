@@ -6,6 +6,7 @@
 
 // Page loader
 $(document).ready(function(){
+
     // Connect to server
     var socket = io.connect('localhost', {port: 4000});
     
