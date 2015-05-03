@@ -8,3 +8,10 @@ button {
     padding-bottom: 0.55em !important;
     margin: 0 0 0 5px;
 }
+
+/* Font */
+.derivationTree li p, .ui-tooltip {
+    text-decoration: none;
+    font-family: arial, verdana, tahoma;
+    font-size: 12px;
+}

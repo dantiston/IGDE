@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from delphin.derivation import Derivation
 from delphin.mrs import Xmrs
 from delphin.mrs.components import HandleConstraint, ElementaryPredication
+
     
 class Comments(models.Model):
     user = models.ForeignKey(User)
@@ -155,10 +156,10 @@ class IgdeXmrs(Xmrs):
         # Add token if applicable
         # TODO: Move conversions to init
         values = {
-            "TOP":str(self.ltop),
-            "INDEX":str(self.index),
+            "TOP":IgdeVariable(self.ltop, "ltop").output_HTML(),
+            "INDEX":IgdeVariable(self.index, "index").output_HTML(),
             "RELS":bracket_formatter.format("RELS", "".join(IgdeElementaryPredication(ep).output_HTML() for ep in self.eps)),
-            "HCONS":bracket_formatter.format("HCONS", " ".join(str(IgdeHandleConstraint(hc)) for hc in self.hcons)),
+            "HCONS":bracket_formatter.format("HCONS", " ".join(str(IgdeHandleConstraint(hc).output_HTML()) for hc in self.hcons)),
             "ICONS":bracket_formatter.format("ICONS", str(self.icons)) if self.icons else "",
         }
         # Return result
@@ -166,6 +167,8 @@ class IgdeXmrs(Xmrs):
 
 
 class IgdeHandleConstraint(HandleConstraint):
+
+    format = """<div>{hi}<p> {relation} </p>{lo}</div>"""
     
     def __init__(self, other):
         """
@@ -184,6 +187,19 @@ class IgdeHandleConstraint(HandleConstraint):
         """
         return " ".join(map(str, (self.hi, self.relation, self.lo)))
 
+    def __repr__(self):
+        return "<{}: {} at {}>".format(self.__class__.__name__, str(self), id(self))
+
+    def output_HTML(self):
+        """
+        Format:
+            <div><p id="{hi}" class="hi">{hi}</p><p> {relation} </p><p id="{lo}" class="lo">{lo}</p></div>
+        """
+        return IgdeHandleConstraint.format.format(
+            hi=IgdeVariable(self.hi, "hi").output_HTML(),
+            relation=self.relation,
+            lo=IgdeVariable(self.lo, "lo").output_HTML())
+
 
 class IgdeElementaryPredication(ElementaryPredication):
     
@@ -194,7 +210,7 @@ class IgdeElementaryPredication(ElementaryPredication):
         if not isinstance(other, ElementaryPredication):
             raise TypeError("{} constructor passed object of type {}, must be of type HandleConstraint".format(__class__.__name__, other.__class__.__name__))
         self._node = other._node
-        self.label = other.label
+        self.label = IgdeVariable(other.label, "label")
         self.pred = other.pred
         self.argdict = other.argdict
 
@@ -217,14 +233,31 @@ class IgdeElementaryPredication(ElementaryPredication):
         </table>
         """
         formatter = '''<table{CLASS}><tr><td colspan="2">{PREDICATE}</td></tr><tr><td>LBL</td><td>{LABEL}</td></tr>{ARGUMENTS}</table>'''
-        argFormatter = '''<tr><td>{ARGNAME!s}</td><td>{ARGVARIABLE!s}</td></tr>'''
+        argFormatter = '''<tr><td>{ARGNAME!s}</td><td>{ARGVARIABLE}</td></tr>'''
         
         values = {
             "CLASS":" class={}".format(htmlClass) if htmlClass else "",
             "PREDICATE":self.pred,
-            "LABEL":self.label,
-            "ARGUMENTS":"".join(argFormatter.format(ARGNAME=name, ARGVARIABLE=argument.value) for name, argument in self.argdict.items()) if self.argdict else "",
+            "LABEL":self.label.output_HTML(),
+            "ARGUMENTS":"".join(argFormatter.format(ARGNAME=name, ARGVARIABLE=IgdeVariable(argument.value, name).output_HTML()) for name, argument in self.argdict.items()) if self.argdict else "",
         }
 
         return formatter.format(**values)
 
+
+class IgdeVariable(object):
+
+    format = """<p id="{value}" class="{sort}">{value}</p>"""
+
+    def __init__(self, value, sort):
+        self.value = value
+        self.sort = sort
+
+    def __str__(self):
+        return str(self.value)
+
+    def __repr__(self):
+        return "<{}: {} at {}>".format(self.__class__.__name__, str(self), id(self))
+
+    def output_HTML(self):
+        return IgdeVariable.format.format(value=self.value, sort=self.sort)

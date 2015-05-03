@@ -2,6 +2,17 @@
  * Integrated Grammar Development Environment
  * @author: T.J. Trimble
  *
+ * igde.js
+ *
+ * jQuery for interacting with socket.io
+ * Provides the following core functions:
+ * 
+ *     * requestParse: requests parse of the value in #comment
+ *     * requestTfs: requests MRS or AVM
+ *     * requestUnify: requests unification of two given tree_ID:edge_ID pairs
+ *     * requestGenerate: requests generation of the given MRS
+ *     * requestGrammarEntity: requests specified grammar entity
+ *  
  */
 
 // Page loader
@@ -14,37 +25,35 @@ $(document).ready(function(){
     socket.on('connect', function(){
         console.log("connect");
     });
-    
-    /*** PARSING ***/
-    function sendParse(entry_el) {
-        var msg = entry_el.prop('value');
-        if (msg) {
-            socket.emit('parse', msg, function(data) {
-                console.log(data);
-            });
-            //Clear input value
-            entry_el.prop('value', '');
-        }
-    }
 
     // Get element
     var entry_element = $('#comment');
-    var entry_button = $('button');
+    var entry_button = $('button#analyze');
 
-    // On submit, request parse from the server
-    // TODO: add button, add this function to onclick for that button
+    /*** PARSING ***/
+    function requestParse(entry_el) {
+	var msg = entry_el.prop('value');
+	if (msg) {
+	    socket.emit('parse', msg, function(data) {
+		console.log(data);
+	    });
+	    //Clear input value
+	    entry_el.prop('value', '');
+	}
+    }
+
     entry_element.keypress(function(event) {
         if (event.keyCode != 13) return;
-	sendParse(entry_element);
+	requestParse(entry_element);
     });
     entry_button.click(function(event) {
-	sendParse(entry_element);
+	requestParse(entry_element);
     });
 
 
     /*** REQUESTING MRS/AVM ***/
-    // On click, request MRS/AVM from the server
-    $("#parses").on('click', ".derivationTree p", function() {
+    // TODO: Generalize this
+    function requestTfs() {
 	var tree_id = $(this).closest(".derivationTree").attr('id');
 	var edge_id = this.id;
 	if (tree_id && edge_id) {
@@ -53,7 +62,13 @@ $(document).ready(function(){
 		console.log(data);
 	    });
 	}
-    });
+    }
+
+    // On click, request MRS/AVM from the server
+    // TODO: make this happen on proper menu click
+    $("#parses").on('click', ".derivationTree p", requestTfs);
+
+
 
     /*** UNIFICATION ***/
     // On drag and drop, request AVM of unification from the server

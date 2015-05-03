@@ -124,10 +124,6 @@ ul#parses h3, ul#parses h5 {
 .derivationTree li p {
     border: 1px solid #ccc;
     padding: 5px 10px;
-    text-decoration: none;
-    color: #666;
-    font-family: arial, verdana, tahoma;
-    font-size: 11px;
     display: inline-block;
     
     border-radius: 5px;
