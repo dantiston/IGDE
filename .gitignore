@@ -5,6 +5,9 @@
 # Ignore collected static files
 IGDE/static/
 
+# Ignore django database migrations
+*/migrations/*
+
 #######
 # From https://github.com/github/gitignore/blob/master/Python.gitignore
 

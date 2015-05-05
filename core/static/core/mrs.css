@@ -14,3 +14,31 @@ table.mrsInnerTable {
     background: none;
     border: none;
 }
+
+.mrsVar, .mrsHandleConstraint, .mrsHandleConstraintRelation {
+    margin: 0;
+    display: inline;
+}
+
+.mrsHandleConstraint ~ p {
+    display: inline;
+}
+
+.mrsVar {
+    -webkit-transition: color .3s;
+    transition: color .3s;
+}
+
+/* table.mrsRelation p { */
+/*     font-weight: normal; */
+/*     text-align: center; */
+/*     line-height: 1; */
+/*     white-space: nowrap; */
+/*     display: inline-block; */
+/*     position: relative; */
+/*     margin-bottom: auto; */
+/*     padding: 0.25rem 0.5rem; */
+/*     font-size: 1em; */
+/*     background-color: none; */
+/*     color: none; */
+/* } */

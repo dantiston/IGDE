@@ -10,7 +10,7 @@ button {
 }
 
 /* Font */
-.derivationTree li p, .ui-tooltip {
+.derivationTree li p, .ui-tooltip, mrsVar {
     text-decoration: none;
     font-family: arial, verdana, tahoma;
     font-size: 12px;

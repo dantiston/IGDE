@@ -12,8 +12,8 @@ import redis
 from collections import defaultdict
 
 # App imports
-from core.models import Comments, User
-from core.models import IgdeDerivation, IgdeXmrs
+from .models import Comments, User
+from .models import IgdeDerivation, IgdeXmrs
 
 # PyDelphin imports
 from delphin.interfaces import lui

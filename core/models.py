@@ -93,6 +93,12 @@ class IgdeXmrs(Xmrs):
     additional output methods, specifically output_HTML()
     """
 
+    formatter = "<table class=\"mrsTable\"><tbody><tr><td>TOP</td><td>{TOP}</td></tr><tr><td>INDEX</td><td>{INDEX}</td></tr>{RELS}{HCONS}{ICONS}</tbody></table>"
+    bracket_formatter = "<tr><td>{}</td><td><table class=\"mrsInnerTable {}\"><td class=\"bracket\"><</td><td><ul>{}</ul></td><td class=\"bracket\">></td></table></td></tr>"
+
+    list_delimiter = "<p>, </p>"
+
+
     def __init__(self, other):
         """
         For creating copies of Xmrs objects
@@ -150,25 +156,23 @@ class IgdeXmrs(Xmrs):
 	    </tbody>
         </table>
         """
-
-        formatter = "<table class=\"mrsTable\"><tbody><tr><td>TOP</td><td>{TOP}</td></tr><tr><td>INDEX</td><td>{INDEX}</td></tr>{RELS}{HCONS}{ICONS}</tbody></table>"
-        bracket_formatter = "<tr><td>{}</td><td><table class=\"mrsInnerTable\"><td class=\"bracket\"><</td><td><ul>{}</ul></td><td class=\"bracket\">></td></table></td></tr>"
+        
         # Add token if applicable
         # TODO: Move conversions to init
         values = {
             "TOP":IgdeVariable(self.ltop, "ltop").output_HTML(),
             "INDEX":IgdeVariable(self.index, "index").output_HTML(),
-            "RELS":bracket_formatter.format("RELS", "".join(IgdeElementaryPredication(ep).output_HTML() for ep in self.eps)),
-            "HCONS":bracket_formatter.format("HCONS", " ".join(str(IgdeHandleConstraint(hc).output_HTML()) for hc in self.hcons)),
-            "ICONS":bracket_formatter.format("ICONS", str(self.icons)) if self.icons else "",
+            "RELS":IgdeXmrs.bracket_formatter.format("RELS", "rels", "".join(IgdeElementaryPredication(ep).output_HTML() for ep in self.eps)),
+            "HCONS":IgdeXmrs.bracket_formatter.format("HCONS", "hcons", IgdeXmrs.list_delimiter.join(str(IgdeHandleConstraint(hc).output_HTML()) for hc in self.hcons)),
+            "ICONS":IgdeXmrs.bracket_formatter.format("ICONS", "icons", IgdeXmrs.list_delimiter.join(str(IgdeInformationConstraint(ic).output_HTML()) for ic in self.icons)) if self.icons else "",
         }
         # Return result
-        return formatter.format(**values)
+        return IgdeXmrs.formatter.format(**values)
 
 
 class IgdeHandleConstraint(HandleConstraint):
 
-    format = """<div>{hi}<p> {relation} </p>{lo}</div>"""
+    format = """<div class="mrsHandleConstraint">{hi}<p class="mrsHandleConstraintRelation"> {relation} </p>{lo}</div>"""
     
     def __init__(self, other):
         """
@@ -199,6 +203,17 @@ class IgdeHandleConstraint(HandleConstraint):
             hi=IgdeVariable(self.hi, "hi").output_HTML(),
             relation=self.relation,
             lo=IgdeVariable(self.lo, "lo").output_HTML())
+
+
+class IgdeInformationConstraint(object):
+
+    def __init__(self, other):
+        """
+        For creating copies of InformationConstraint objects
+        TODO: this!
+        """
+        self = other
+
 
 
 class IgdeElementaryPredication(ElementaryPredication):
@@ -247,7 +262,7 @@ class IgdeElementaryPredication(ElementaryPredication):
 
 class IgdeVariable(object):
 
-    format = """<p id="{value}" class="{sort}">{value}</p>"""
+    format = """<p id="{value}" class="mrsVar mrsVar_{value}">{value}</p>"""
 
     def __init__(self, value, sort):
         self.value = value
@@ -260,4 +275,4 @@ class IgdeVariable(object):
         return "<{}: {} at {}>".format(self.__class__.__name__, str(self), id(self))
 
     def output_HTML(self):
-        return IgdeVariable.format.format(value=self.value, sort=self.sort)
+        return IgdeVariable.format.format(value=self.value)
