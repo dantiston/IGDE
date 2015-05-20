@@ -2,6 +2,8 @@
  * Integrated Grammar Development Environment
  * @author: T.J. Trimble
  *
+ * mrs.css
+ * 
  */
 
 table.mrsRelation {
@@ -28,6 +30,19 @@ table.mrsInnerTable {
     -webkit-transition: color .3s;
     transition: color .3s;
 }
+
+.mrsPropertiesBracket {
+    display: inline;
+    margin: 0 2px 0 2px;
+}
+
+.mrsPropertiesValues {
+    display: none;
+}
+
+/* .mrsRelationProperties { */
+/*     display: none; */
+/* } */
 
 /* table.mrsRelation p { */
 /*     font-weight: normal; */

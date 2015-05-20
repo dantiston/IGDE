@@ -13,6 +13,7 @@ var mrsVarColorDefault = "#000000";
 var mrsVarColorMainHover = "#FF0000";
 var mrsVarColorSecondaryHover = "#33CC33";
 
+
 // Highlight MRS variable
 prefix = "mrsVar_";
 function highlightMrsVar(className, color, secondaryColor) {
@@ -30,16 +31,29 @@ function highlightMrsVar(className, color, secondaryColor) {
 }
 
 
+function getLastClassName(object) {
+    return $(object).attr("class").split(" ").slice(-1)[0];
+}
+
+
 // Page loader functions
 $(document).ready(function() {
+
+    // TODO: THIS
+    $("#parses").on({
+	click: function () {
+	    $(this).children().eq(1).toggle();
+	}
+    }, ".mrsRelationProperties");
+    
 
     // Assumes correct mrsVar_X class is the last class
     $("#parses").on({
 	mouseenter: function () {
-	    highlightMrsVar($(this).attr("class").split(" ").slice(-1)[0], mrsVarColorMainHover, mrsVarColorSecondaryHover);
+	    highlightMrsVar(getLastClassName(this), mrsVarColorMainHover, mrsVarColorSecondaryHover);
 	},
 	mouseleave: function () {
-	    highlightMrsVar($(this).attr("class").split(" ").slice(-1)[0], mrsVarColorDefault, mrsVarColorDefault);
+	    highlightMrsVar(getLastClassName(this), mrsVarColorDefault, mrsVarColorDefault);
 	}
     }, ".mrsTable p");
     
