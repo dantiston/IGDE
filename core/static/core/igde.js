@@ -15,6 +15,21 @@
  *  
  */
 
+// Tooltip
+$(document).tooltip({
+    items:".derivationTree p,.mrsRelationProperties",
+    track: true,
+    content: function() {
+        var element = $(this);
+        if (element.is("p")) {
+            return element.attr("title");
+        }
+        else if (element.is(".mrsRelationProperties")) {
+            return element.attr("title");
+        }
+    }
+});
+
 // Page loader
 $(document).ready(function(){
 
@@ -52,12 +67,9 @@ $(document).ready(function(){
 
 
     /*** REQUESTING MRS/AVM ***/
-    // TODO: Generalize this
-    function requestTfs() {
-	var tree_id = $(this).closest(".derivationTree").attr('id');
-	var edge_id = this.id;
+    function requestTfs(tree_id, edge_id, what) {
 	if (tree_id && edge_id) {
-	    var msg = "request " + tree_id + " " + edge_id + " mrs simple";
+	    var msg = "request " + tree_id + " " + edge_id + " " + what;
 	    socket.emit('request', msg, function(data) {
 		console.log(data);
 	    });
@@ -66,8 +78,9 @@ $(document).ready(function(){
 
     // On click, request MRS/AVM from the server
     // TODO: make this happen on proper menu click
-    $("#parses").on('click', ".derivationTree p", requestTfs);
-
+    $("#parses").on('click', ".derivationTree p", function() {
+	requestTfs($(this).closest(".derivationTree").attr('id'), this.id, "mrs simple");
+    });
 
 
     /*** UNIFICATION ***/

@@ -229,7 +229,7 @@ class IgdeElementaryPredication(ElementaryPredication):
         self.pred = other.pred
         self.argdict = other.argdict
 
-    def output_HTML(self, htmlClass="mrsRelation", propertiesClass="mrsRelationProperties"):
+    def output_HTML(self, htmlClass="mrsRelation"):
         """
         Returns HTML representation of ElementaryPredication in the following format:
 
@@ -250,7 +250,7 @@ class IgdeElementaryPredication(ElementaryPredication):
         </table>
         """
         formatter = '''<table{CLASS}><tr><td colspan="3">{PREDICATE}</td></tr><tr><td>LBL</td><td>{LABEL}</td></tr>{ARGUMENTS}</table>'''
-        argFormatter = '''<tr><td>{ARGNAME!s}</td><td>{ARGVALUE}</td><td{CLASS}>{ARGPROPERTIES}</td></tr>'''
+        argFormatter = '''<tr><td>{ARGNAME!s}</td><td>{ARGVALUE}</td><td>{ARGPROPERTIES}</td></tr>'''
         empty = '''<tr></tr>'''
         propertiesClassFormatter = ''' class={}'''
         
@@ -258,10 +258,9 @@ class IgdeElementaryPredication(ElementaryPredication):
             "CLASS":" class={}".format(htmlClass) if htmlClass else "",
             "PREDICATE":self.pred,
             "LABEL":"".join((self.label.output_HTML(), "<td></td>")),
-            #"ARGUMENTS":"".join(argFormatter.format(ARGNAME=name, ARGVALUE=IgdeArgument(argument.value, name).output_HTML(), ARGPROPERTIES=propertiesFormatter.format(",<br/>".join(": ".join(map(str, entry)) for entry in argument.value.properties.items())) if argument.value.properties else "", CLASS=propertiesClass if argument.value.properties else "") for name, argument in self.argdict.items()) if self.argdict else empty,
-            "ARGUMENTS":"".join(argFormatter.format(ARGNAME=name, ARGVALUE=IgdeArgument(argument.value, name).output_HTML(), ARGPROPERTIES=IgdeArgument(argument.value, name).output_properties_HTML(), CLASS=propertiesClassFormatter.format(propertiesClass)) for name, argument in self.argdict.items()) if self.argdict else empty,
-            #"ARGUMENTS":"".join(argFormatter.format(ARGNAME=name, ARGVALUE=IgdeArgument(argument.value, name).output_HTML(), ARGPROPERTIES="", CLASS=propertiesClass if argument.value.properties else "") for name, argument in self.argdict.items()) if self.argdict else empty,
+            "ARGUMENTS":"".join(argFormatter.format(ARGNAME=name, ARGVALUE=IgdeArgument(argument.value, name).output_HTML(), ARGPROPERTIES=IgdeArgument(argument.value, name).output_properties_HTML()) for name, argument in self.argdict.items()) if self.argdict else empty,
         }
+        #, CLASS=propertiesClassFormatter.format(propertiesClass)
 
         return formatter.format(**values)
 
@@ -270,7 +269,7 @@ class IgdeArgument(Argument):
 
     format = """<p id="{value}" class="mrsVar mrsVar_{value}">{value}</p>"""
 
-    propertiesFormatter = "<div class=\"{bracketsClass}\">[</div><div class=\"{propertiesClass}\">{}</div><div class=\"{bracketsClass}\">]</div>"
+    propertiesFormatter = "<div class=\"{propertiesClass}\" title=\"{properties}\"><div class=\"{bracketsClass}\">[</div><div class=\"{valuesClass}\">{properties}</div><div class=\"{bracketsClass}\">]</div></div>"
 
 
     def __init__(self, value, sort, properties=None):
@@ -278,17 +277,21 @@ class IgdeArgument(Argument):
         self.sort = sort
         self.properties = properties # OrderedDict
 
+
     def __str__(self):
         return str(self.value)
+
 
     def __repr__(self):
         return "<{}: {} at {}>".format(self.__class__.__name__, str(self), id(self))
 
+
     def output_HTML(self):
         return self.__class__.format.format(value=self.value)
 
-    def output_properties_HTML(self, propertiesValuesClass="mrsPropertiesValues", propertiesBracketsClass="mrsPropertiesBracket"):
+
+    def output_properties_HTML(self, propertiesClass="mrsRelationProperties", propertiesValuesClass="mrsPropertiesValues", propertiesBracketsClass="mrsPropertiesBracket"):
         if not self.value.properties:
             return ""
         else:
-            return IgdeArgument.propertiesFormatter.format(",<br/>".join(": ".join(map(str, entry)) for entry in self.value.properties.items()), bracketsClass=propertiesBracketsClass, propertiesClass=propertiesValuesClass)
+            return IgdeArgument.propertiesFormatter.format(properties=",<br/>".join(": ".join(map(str, entry)) for entry in self.value.properties.items()), bracketsClass=propertiesBracketsClass, valuesClass=propertiesValuesClass, propertiesClass=propertiesClass)

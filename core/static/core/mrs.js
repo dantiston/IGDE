@@ -4,7 +4,8 @@
  *
  * mrs.js
  *
- * jQuery for styling and interacting with IgdeMrs HTML representations
+ * jQuery for styling and interacting with
+ * IgdeMrs HTML representations
  *  
  */
 
@@ -16,30 +17,32 @@ var mrsVarColorSecondaryHover = "#33CC33";
 
 // Highlight MRS variable
 prefix = "mrsVar_";
-function highlightMrsVar(className, color, secondaryColor) {
+function highlightMrsVar(domElement, color, secondaryColor) {
+    var element = $(domElement);
+    var className = getLastClassName(element);
     if (className.substring(0, prefix.length) == prefix) {
-	$("."+className).css("color", color);
+	var closest = element.closest(".mrsTable");
+	closest.find("."+className).css("color", color);
 	// Check for links
 	if (secondaryColor != null) {
 	    // Check for handle constraint links and highlight
-	    if ($(".hcons ."+ className).siblings(".mrsVar").length > 0) {
-		highlightMrsVar($(".hcons ."+ className).siblings(".mrsVar").slice(0).attr("class").split(" ").slice(-1)[0], secondaryColor);
+	    if (closest.find(".hcons ."+className).siblings(".mrsVar").length > 0) {
+		closest.find("."+(closest.find(".hcons ."+className).siblings(".mrsVar").slice(0).attr("class").split(" ").slice(-1)[0])).css("color", secondaryColor);
 	    }
 	    // Check for information constraint links and highlight
 	}
     }
 }
 
-
 function getLastClassName(object) {
-    return $(object).attr("class").split(" ").slice(-1)[0];
+    return object.attr("class").split(" ").slice(-1)[0];
 }
 
 
 // Page loader functions
 $(document).ready(function() {
 
-    // TODO: THIS
+    // Show/hide properties on onclick
     $("#parses").on({
 	click: function () {
 	    $(this).children().eq(1).toggle();
@@ -50,10 +53,10 @@ $(document).ready(function() {
     // Assumes correct mrsVar_X class is the last class
     $("#parses").on({
 	mouseenter: function () {
-	    highlightMrsVar(getLastClassName(this), mrsVarColorMainHover, mrsVarColorSecondaryHover);
+	    highlightMrsVar(this, mrsVarColorMainHover, mrsVarColorSecondaryHover);
 	},
 	mouseleave: function () {
-	    highlightMrsVar(getLastClassName(this), mrsVarColorDefault, mrsVarColorDefault);
+	    highlightMrsVar(this, mrsVarColorDefault, mrsVarColorDefault);
 	}
     }, ".mrsTable p");
     
