@@ -6,14 +6,13 @@ views.py
 """
 
 # General imports
+import sys
 import logging
 import redis
 
-from collections import defaultdict
-
 # App imports
 from .models import Comments, User
-from .models import IgdeDerivation, IgdeXmrs
+from .models import IgdeDerivation, IgdeXmrs, IgdeTypedFeatureStructure
 
 # PyDelphin imports
 from delphin.interfaces import lui
@@ -33,6 +32,7 @@ ace = InteractiveAce("/home/dantiston/delphin/erg.dat")
 
 logger = logging.getLogger(__name__)
 
+
 # TODO: Home shouldn't have login required. Need to keep track of sessions
 # and attach the parser instance to them. The parser should open and close
 # with the browser connection.
@@ -40,6 +40,7 @@ logger = logging.getLogger(__name__)
 def home(request):
     comments = Comments.objects.select_related().all()[0:100]
     return render(request, 'index.html', locals())
+
 
 @csrf_exempt # TODO: consider removing csrf_exempt?
 def parse(request):
@@ -99,15 +100,20 @@ def request(request):
         #user = User.objects.get(id=user_id)
 
         # Send request to parser
-        lui.request_mrs(ace, tree_ID, edge_ID)
-        mrs = lui.load_mrs(lui.receive_mrs(ace))
-        html = IgdeXmrs(mrs).output_HTML()
+        if command == "mrs simple":
+            lui.request_mrs(ace, tree_ID, edge_ID)
+            mrs = lui.load_mrs(lui.receive_mrs(ace))
+            html = IgdeXmrs(mrs).output_HTML()
+        elif command == "avm":
+            lui.request_avm(ace, tree_ID, edge_ID)
+            avm = lui.load_avm(lui.receive_mrs(ace))
+            html = IgdeTypedFeatureStructure(avm).output_HTML()
 
         command_name = simple_names[command] if command in simple_names else command
 
         result = "<h5>({} for tree {})</h5><ul><li>{}</li></ul><hr/>".format(command_name, tree_ID, html)
 
-        # Once datum has been parsed, send it back to user
+        # Once item has been retrieved, send it back to user
         r = redis.StrictRedis(host='localhost', port=6379, db=0)
         r.publish('chat', result)
 

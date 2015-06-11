@@ -10,9 +10,9 @@ urlpatterns = patterns('',
         name="foundation_index"),
 
     # IGDE
-    url(r'^$', 'core.views.home', name='home'),
-    url(r'^parse$', 'core.views.parse', name='parse'),
-    url(r'^request$', 'core.views.request', name='request'),
+    url(r'^$', 'wxlui.views.home', name='home'),
+    url(r'^parse$', 'wxlui.views.parse', name='parse'),
+    url(r'^request$', 'wxlui.views.request', name='request'),
 
     url(r'^admin/', include(admin.site.urls)),
     url(r'^login/$', 'django.contrib.auth.views.login', {'template_name': 'admin/login.html'}, name='login'),

@@ -11,6 +11,7 @@ from django.contrib.auth.models import User
 from delphin.derivation import Derivation
 from delphin.mrs import Xmrs
 from delphin.mrs.components import HandleConstraint, ElementaryPredication, Argument
+from delphin.tfs import TypedFeatureStructure
 
     
 class Comments(models.Model):
@@ -223,7 +224,7 @@ class IgdeElementaryPredication(ElementaryPredication):
         For creating copies of ElementaryPredication objects
         """
         if not isinstance(other, ElementaryPredication):
-            raise TypeError("{} constructor passed object of type {}, must be of type HandleConstraint".format(__class__.__name__, other.__class__.__name__))
+            raise TypeError("{} constructor passed object of type {}, must be of type ElementaryPredication".format(__class__.__name__, other.__class__.__name__))
         self._node = other._node
         self.label = IgdeArgument(other.label, "label")
         self.pred = other.pred
@@ -255,12 +256,11 @@ class IgdeElementaryPredication(ElementaryPredication):
         propertiesClassFormatter = ''' class={}'''
         
         values = {
-            "CLASS":" class={}".format(htmlClass) if htmlClass else "",
+            "CLASS":" class=\"{}\"".format(htmlClass) if htmlClass else "",
             "PREDICATE":self.pred,
             "LABEL":"".join((self.label.output_HTML(), "<td></td>")),
             "ARGUMENTS":"".join(argFormatter.format(ARGNAME=name, ARGVALUE=IgdeArgument(argument.value, name).output_HTML(), ARGPROPERTIES=IgdeArgument(argument.value, name).output_properties_HTML()) for name, argument in self.argdict.items()) if self.argdict else empty,
         }
-        #, CLASS=propertiesClassFormatter.format(propertiesClass)
 
         return formatter.format(**values)
 
@@ -295,3 +295,33 @@ class IgdeArgument(Argument):
             return ""
         else:
             return IgdeArgument.propertiesFormatter.format(properties=",<br/>".join(": ".join(map(str, entry)) for entry in self.value.properties.items()), bracketsClass=propertiesBracketsClass, valuesClass=propertiesValuesClass, propertiesClass=propertiesClass)
+
+
+
+class IgdeTypedFeatureStructure(TypedFeatureStructure):
+
+    def __init__(self, other):
+        """
+        For creating copies of TypedFeatureStructure objects
+        """
+        if not isinstance(other, TypedFeatureStructure):
+            raise TypeError("{} constructor passed object of type {}, must be of type TypedFeatureStructure".format(__class__.__name__, other.__class__.__name__))
+        self._avm = other._avm
+        try:
+            self._type = other._type
+        except AttributeError:
+            self._type = None
+
+
+    def output_HTML(self, htmlClass="typedFeatureStructure"):
+        """
+        Returns HTML representation of TypedFeatureStructure
+        in the following format:
+
+        TODO: Figure out HTML
+        """
+
+        # TODO: This
+        formatter = "{%s}"
+        return formatter % ",<br>".join(": ".join(key, value) for key, value in self.features())
+

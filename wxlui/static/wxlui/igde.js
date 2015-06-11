@@ -38,7 +38,7 @@ $(document).ready(function(){
     
     // Connection code
     socket.on('connect', function(){
-        console.log("connect");
+        console.log("Successfully connected to server.");
     });
 
     // Get element
@@ -68,8 +68,9 @@ $(document).ready(function(){
 
     /*** REQUESTING MRS/AVM ***/
     function requestTfs(tree_id, edge_id, what) {
-	if (tree_id && edge_id) {
+	if (tree_id && edge_id && what) {
 	    var msg = "request " + tree_id + " " + edge_id + " " + what;
+	    console.log("Requesting " + msg);
 	    socket.emit('request', msg, function(data) {
 		console.log(data);
 	    });
@@ -79,7 +80,9 @@ $(document).ready(function(){
     // On click, request MRS/AVM from the server
     // TODO: make this happen on proper menu click
     $("#parses").on('click', ".derivationTree p", function() {
-	requestTfs($(this).closest(".derivationTree").attr('id'), this.id, "mrs simple");
+	//requestTfs($(this).closest(".derivationTree").attr('id'), this.id, "mrs simple");
+	// TODO: Figure out the UX for requesting MRS vs AVM and implement here
+	requestTfs($(this).closest(".derivationTree").attr('id'), this.id, "avm");
     });
 
 

@@ -7,6 +7,7 @@ IGDE/static/
 
 # Ignore django database migrations
 */migrations/*
+db.sqlite3
 
 #######
 # From https://github.com/github/gitignore/blob/master/Python.gitignore

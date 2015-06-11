@@ -35,7 +35,7 @@ INSTALLED_APPS = (
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'core',
+    'wxlui',
     'foundation',
 )
 
@@ -177,7 +177,7 @@ LOGGING = {
             'level': 'ERROR',
             'propagate': True,
         },
-        'core': {
+        'wxlui': {
             'handlers':['file',],
             'level':'DEBUG',
         },
