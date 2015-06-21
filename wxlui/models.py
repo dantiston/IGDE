@@ -5,15 +5,17 @@ Integrated Grammar Development Environment
 models.py
 """
 
+# Django imports
 from django.db import models
 from django.contrib.auth.models import User
 
+# PyDelphin imports
 from delphin.derivation import Derivation
 from delphin.mrs import Xmrs
 from delphin.mrs.components import HandleConstraint, ElementaryPredication, Argument
 from delphin.tfs import TypedFeatureStructure
 
-    
+
 class Comments(models.Model):
     user = models.ForeignKey(User)
     text = models.CharField(max_length=255)
@@ -39,11 +41,11 @@ class IgdeDerivation(Derivation):
         self.chart_ID = other.chart_ID
         self.rule_name = other.rule_name
         self.tree_ID = other.tree_ID
-    
-    def output_HTML(self, top=True, title_text=True):
+
+    def output_HTML(self, html_class="derivationTree", top=True, title_text=True):
         """
         Returns HTML representation of tree in the following format:
-            
+
             <div class="derivationTree" id={TREE_ID}>
                 <ul>
                     <li>
@@ -64,12 +66,12 @@ class IgdeDerivation(Derivation):
 
 
         See http://thecodeplayer.com/walkthrough/css3-family-tree
-        
+
         By default, this method returns HTML styled with the HTML's title
         attribute set to the rule used and the parse chart ID. Pass
         title_text=False to disable this.
         """
-        top_formatter = "<div class=\"derivationTree\"{tree_ID}><ul>{values}</ul></div>"
+        top_formatter = "<div class=\"{html_class}\"{tree_ID}><ul>{values}</ul></div>"
         formatter = "<li{CLASS}><p{EDGE_ID}{TITLE}>{LABEL}</p>{TOKEN}{CHILDREN}</li>"
         # Add token if applicable
         values = {
@@ -84,7 +86,7 @@ class IgdeDerivation(Derivation):
         result = formatter.format(**values)
         if top:
             tree_ID = " id=\"{}\"".format(self.tree_ID) if self.tree_ID else ""
-            result = top_formatter.format(tree_ID=tree_ID, values=result)
+            result = top_formatter.format(tree_ID=tree_ID, values=result, html_class=html_class)
         return result
 
 
@@ -109,7 +111,7 @@ class IgdeXmrs(Xmrs):
         self.lnk = other.lnk
         self.surface = other.surface
         self.identifier = other.identifier
-            
+
     def output_HTML(self):
         """
         Returns HTML representation of MRS in the following format:
@@ -118,11 +120,11 @@ class IgdeXmrs(Xmrs):
             <tbody>
                 <tr>
                     <td>TOP</td>
-                    <td>{TOP}</td> 
+                    <td>{TOP}</td>
 		</tr>
 		<tr>
                     <td>INDEX</td>
-		    <td>{INDEX}</td> 
+		    <td>{INDEX}</td>
 		</tr>
 		<tr>
 		    <td>RELS</td>
@@ -132,7 +134,7 @@ class IgdeXmrs(Xmrs):
 			    <td><ul>{RELS}</ul></td>
 			    <td class="bracket">></td>
 			</table>
-		    </td> 
+		    </td>
 		</tr>
 		<tr>
 		    <td>HCONS</td>
@@ -142,7 +144,7 @@ class IgdeXmrs(Xmrs):
 			    <td><ul>{HCONS}</ul></td>
 			    <td class="bracket">></td>
 			</table>
-		    </td> 
+		    </td>
 		</tr>
 		<tr>
 		    <td>ICONS</td>
@@ -152,12 +154,12 @@ class IgdeXmrs(Xmrs):
 			    <td><ul>{ICONS}</ul></td>
 			    <td class="bracket">></td>
 			</table>
-		    </td> 
+		    </td>
 		</tr>
 	    </tbody>
         </table>
         """
-        
+
         # Add token if applicable
         # TODO: Move conversions to init
         values = {
@@ -174,7 +176,7 @@ class IgdeXmrs(Xmrs):
 class IgdeHandleConstraint(HandleConstraint):
 
     format = """<div class="mrsHandleConstraint">{hi}<p class="mrsHandleConstraintRelation"> {relation} </p>{lo}</div>"""
-    
+
     def __init__(self, other):
         """
         For creating copies of HandleConstraint objects
@@ -218,7 +220,7 @@ class IgdeInformationConstraint(object):
 
 
 class IgdeElementaryPredication(ElementaryPredication):
-    
+
     def __init__(self, other):
         """
         For creating copies of ElementaryPredication objects
@@ -230,7 +232,7 @@ class IgdeElementaryPredication(ElementaryPredication):
         self.pred = other.pred
         self.argdict = other.argdict
 
-    def output_HTML(self, htmlClass="mrsRelation"):
+    def output_HTML(self, html_class="mrsRelation"):
         """
         Returns HTML representation of ElementaryPredication in the following format:
 
@@ -254,9 +256,9 @@ class IgdeElementaryPredication(ElementaryPredication):
         argFormatter = '''<tr><td>{ARGNAME!s}</td><td>{ARGVALUE}</td><td>{ARGPROPERTIES}</td></tr>'''
         empty = '''<tr></tr>'''
         propertiesClassFormatter = ''' class={}'''
-        
+
         values = {
-            "CLASS":" class=\"{}\"".format(htmlClass) if htmlClass else "",
+            "CLASS":" class=\"{}\"".format(html_class) if html_class else "",
             "PREDICATE":self.pred,
             "LABEL":"".join((self.label.output_HTML(), "<td></td>")),
             "ARGUMENTS":"".join(argFormatter.format(ARGNAME=name, ARGVALUE=IgdeArgument(argument.value, name).output_HTML(), ARGPROPERTIES=IgdeArgument(argument.value, name).output_properties_HTML()) for name, argument in self.argdict.items()) if self.argdict else empty,
@@ -313,15 +315,49 @@ class IgdeTypedFeatureStructure(TypedFeatureStructure):
             self._type = None
 
 
-    def output_HTML(self, htmlClass="typedFeatureStructure"):
+    def output_HTML(self, html_class="typedFeatureStructure", top=True):
         """
         Returns HTML representation of TypedFeatureStructure
         in the following format:
 
-        TODO: Figure out HTML
+            <div class="{HTML_CLASS}" id={TREE_ID}>
+                <ul>
+                    <li>
+                        <p id={EDGE_ID}{TITLE}>{PARENT_LABEL}</p>
+                        <ul>
+                            <li class="terminal">
+                                <p id={EDGE_ID} title="{EDGE_ID}: {RULE_NAME}">{LABEL}</p>
+                                <p>{TOKEN}</p>
+                            </li>
+                        </ul>
+                    </li>
+                    <li class="terminal">
+                        <p id={EDGE_ID} title="{EDGE_ID}: {RULE_NAME}">{LABEL}</p>
+                        <p>{TOKEN}</p>
+                    </li>
+                </ul>
+            </div>
+
+
+        See http://thecodeplayer.com/walkthrough/css3-family-tree
         """
 
-        # TODO: This
-        formatter = "{%s}"
-        return formatter % ",<br>".join(": ".join(key, value) for key, value in self.features())
+        top_formatter = "<div class=\"{html_class}\"><ul>{values}</ul></div>"
+        formatter = "<li{CLASS}><p>{TYPE_NAME}</p><ul>{VALUES}{SUB_AVMS}</ul></li>"
+        values_formatter = "<div><p>{key}</p><p>: </p><p>{value}</p></div>"
 
+        values = {key: value for key, value in self._avm.items() if not isinstance(value, TypedFeatureStructure)}
+        sub_avms = {key: value for key, value in self._avm.items() if key not in values}
+
+        # Add token if applicable
+        values = {
+            "CLASS": " class=\"terminal\"" if not self._avm else "",
+            "TYPE_NAME": self._type,
+            "VALUES": "".join(values_formatter.format(key=key, value=value) for key, value in values.items()) if self._avm else "",
+            "SUB_AVMS": "".join(values_formatter.format(key=key, value=IgdeTypedFeatureStructure(value).output_HTML(top=False)) for key, value in sub_avms.items()) if self._avm else "",
+        }
+        # Return result
+        result = formatter.format(**values)
+        if top:
+            result = top_formatter.format(values=result, html_class=html_class)
+        return result
