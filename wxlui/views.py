@@ -8,7 +8,7 @@ views.py
 # General imports
 import sys
 import logging
-import redis
+#import redis
 
 # App imports
 from .models import Comments, User
@@ -28,7 +28,9 @@ from django.contrib.auth.decorators import login_required
 
 # Initiate ACE
 # TODO: Move this to being attached to a user
-ace = InteractiveAce("/home/dantiston/delphin/erg.dat")
+from os.path import expanduser
+home = expanduser("~")
+ace = InteractiveAce(home + "/delphin/erg.dat")
 
 logger = logging.getLogger(__name__)
 
@@ -62,10 +64,11 @@ def parse(request):
         result += "<ul>{}</ul><hr/>".format("".join(resultFormat.format(item) for item in html))
 
         # Once datum has been parsed, send it back to user
-        r = redis.StrictRedis(host='localhost', port=6379, db=0)
-        r.publish('chat', result)
+        #r = redis.StrictRedis(host='localhost', port=6379, db=0)
+        #r.publish('chat', result)
 
-        return HttpResponse("Everything worked :)")
+        #return HttpResponse("Everything worked :)")
+        return HttpResponse(result)
 
     except Exception as e:
         logger.debug(str(e))
@@ -114,10 +117,11 @@ def request(request):
         result = "<h5>({} for tree {})</h5><ul><li>{}</li></ul><hr/>".format(command_name, tree_ID, html)
 
         # Once item has been retrieved, send it back to user
-        r = redis.StrictRedis(host='localhost', port=6379, db=0)
-        r.publish('chat', result)
+        #r = redis.StrictRedis(host='localhost', port=6379, db=0)
+        #r.publish('chat', result)
 
-        return HttpResponse("Everything worked :)")
+        #return HttpResponse("Everything worked :)")
+        return HttpResponse(result)
 
     except Exception as e:
         logger.debug(str(e))
