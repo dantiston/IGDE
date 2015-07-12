@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.3/themes/smoothness/jquery-ui.css" />
     <link href="{% static "wxlui/tree.css" %}" rel="stylesheet"/>
     <link href="{% static "wxlui/mrs.css" %}" rel="stylesheet"/>
+    <link href="{% static "wxlui/avm.css" %}" rel="stylesheet"/>
     <link href="{% static "wxlui/igde.css" %}" rel="stylesheet"/>
 {% endblock css %}
 
@@ -21,9 +22,10 @@
     <script src="{% static "wxlui/igde.js" %}" type="text/javascript"></script>
     <script src="{% static "wxlui/mrs.js" %}" type="text/javascript"></script>
     <script src="{% static "wxlui/tree.js" %}" type="text/javascript"></script>
+    <script src="{% static "wxlui/avm.js" %}" type="text/javascript"></script>
 
 {% endblock head_js %}
- 
+
 {% block base_body %}
 
       <div class="row">
@@ -37,14 +39,14 @@
 	  </div>
         </div>
       </div>
-       
+
       <div class="row">
         <div class="large-12 columns">
 	  <ul id="parses">
 	  </ul>
         </div>
       </div>
-     
+
       <footer class="row">
         <div class="large-12 columns">
           <hr/>

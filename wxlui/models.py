@@ -320,41 +320,25 @@ class IgdeTypedFeatureStructure(TypedFeatureStructure):
         Returns HTML representation of TypedFeatureStructure
         in the following format:
 
-            <div class="{HTML_CLASS}" id={TREE_ID}>
-                <ul>
-                    <li>
-                        <p id={EDGE_ID}{TITLE}>{PARENT_LABEL}</p>
-                        <ul>
-                            <li class="terminal">
-                                <p id={EDGE_ID} title="{EDGE_ID}: {RULE_NAME}">{LABEL}</p>
-                                <p>{TOKEN}</p>
-                            </li>
-                        </ul>
-                    </li>
-                    <li class="terminal">
-                        <p id={EDGE_ID} title="{EDGE_ID}: {RULE_NAME}">{LABEL}</p>
-                        <p>{TOKEN}</p>
-                    </li>
-                </ul>
-            </div>
 
 
-        See http://thecodeplayer.com/walkthrough/css3-family-tree
+        Adapted from http://jsonviewer.stack.hu
         """
 
         top_formatter = "<div class=\"{html_class}\"><ul>{values}</ul></div>"
-        formatter = "<li{CLASS}><p>{TYPE_NAME}</p><ul>{VALUES}{SUB_AVMS}</ul></li>"
-        values_formatter = "<div><p>{key}</p><p>: </p><p>{value}</p></div>"
+        formatter = "<li{CLASS}{STYLE}><p>{TYPE_NAME}</p><ul>{VALUES}{SUB_AVMS}</ul></li>"
+        values_formatter = "<div><p>{key}</p><p>:</p>{value}</div>"
+        string_formatter = "<p>{}</p>"
 
         values = {key: value for key, value in self._avm.items() if not isinstance(value, TypedFeatureStructure)}
         sub_avms = {key: value for key, value in self._avm.items() if key not in values}
 
-        # Add token if applicable
         values = {
             "CLASS": " class=\"terminal\"" if not self._avm else "",
             "TYPE_NAME": self._type,
-            "VALUES": "".join(values_formatter.format(key=key, value=value) for key, value in values.items()) if self._avm else "",
+            "VALUES": "".join(values_formatter.format(key=key, value=string_formatter.format(value)) for key, value in values.items()) if self._avm else "",
             "SUB_AVMS": "".join(values_formatter.format(key=key, value=IgdeTypedFeatureStructure(value).output_HTML(top=False)) for key, value in sub_avms.items()) if self._avm else "",
+            "STYLE": " style=\"display:none\"" if not top else "",
         }
         # Return result
         result = formatter.format(**values)

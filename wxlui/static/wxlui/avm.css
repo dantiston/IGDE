@@ -1,0 +1,34 @@
+/*
+ * Integrated Grammar Development Environment
+ * @author: T.J. Trimble
+ *
+ * avm.css
+ *
+ * CSS for styling and interacting with
+ * IgdeTypedFeatureStructure HTML representations
+ *
+ */
+
+.typedFeatureStructure {
+    margin: 5px 5px;
+}
+
+
+.typedFeatureStructure ul li ul {
+    margin-left: 1.5rem;
+}
+
+
+.typedFeatureStructure div {
+    display: block;
+}
+
+
+.typedFeatureStructure p {
+    display: inline-block;
+    margin: 0px 2px;
+}
+
+.typedFeatureStructure li > p {
+    margin-left: .75rem;
+}
