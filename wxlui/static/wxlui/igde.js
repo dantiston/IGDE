@@ -15,6 +15,10 @@
  *  
  */
 
+var sockethost = 'localhost';
+var socketport = 4000;
+
+
 // Tooltip
 $(document).tooltip({
     items:".derivationTree p,.mrsRelationProperties",
@@ -34,7 +38,7 @@ $(document).tooltip({
 $(document).ready(function(){
 
     // Connect to server
-    var socket = io.connect('localhost', {port: 4000});
+    var socket = io.connect(sockethost, {port: socketport});
     
     // Connection code
     socket.on('connect', function(){
@@ -49,6 +53,7 @@ $(document).ready(function(){
     function requestParse(entry_el) {
 	var msg = entry_el.prop('value');
 	if (msg) {
+	    console.log("Requesting parse for \"" + msg + "\"");
 	    socket.emit('parse', msg, function(data) {
 		console.log(data);
 	    });
@@ -70,7 +75,7 @@ $(document).ready(function(){
     function requestTfs(tree_id, edge_id, what) {
 	if (tree_id && edge_id && what) {
 	    var msg = "request " + tree_id + " " + edge_id + " " + what;
-	    console.log("Requesting " + msg);
+	    console.log("Requesting " + what + "for \"" + msg + "\"");
 	    socket.emit('request', msg, function(data) {
 		console.log(data);
 	    });
@@ -104,7 +109,10 @@ $(document).ready(function(){
     /*** RESULTS ***/
     // On message from server, add message to list
     socket.on('message', function(message) {
+	console.log("Message received from server.")
+
         // Escape HTML characters
+	// TODO: Do better HTML escapingx
         var data = message.replace(/&/g,"&amp;")
 	
         // Append message to the top of the list

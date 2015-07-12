@@ -4,6 +4,6 @@
     "dependencies": {
 	"socket.io": "~0.9.16",
 	"cookie": "~0.1.0",
-	"querystring": "~0.2.0"
+	"querystring": "~0.2.0",
     }
 }
