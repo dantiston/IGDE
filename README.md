@@ -25,6 +25,10 @@ cd IGDE
 python manage.py runserver localhost:3000
 ```
 
+```
+redis-server
+```
+
 # DEPLOYING IGDE
 Coming... sometime!
 
