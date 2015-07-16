@@ -25,10 +25,6 @@ cd IGDE
 python manage.py runserver localhost:3000
 ```
 
-```
-redis-server
-```
-
 # DEPLOYING IGDE
 Coming... sometime!
 
@@ -41,12 +37,6 @@ To set up IGDE, you'll need several different packages and types of packages. A 
 sudo apt-get install python3-pip
 sudo pip3 install django
  
-#http://redis.io/download
-sudo apt-get install redis-server
- 
-#https://github.com/andymccurdy/redis-py
-sudo pip3 install redis
-
 #https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager
 sudo apt-get install python-software-properties
 sudo add-apt-repository ppa:chris-lea/node.js
@@ -59,8 +49,9 @@ sudo pip3 install django-zurb-foundation
 git clone https://github.com/dantiston/pydelphin.git
 git clone https://github.com/dantiston/IGDE.git
 
+# Install pydelphin
 cd pydelphin
-sudo python setup.py install # install pydelphin
+sudo python setup.py install
 ```
 
 The current version of the IGDE relies on a static ACE-compiled grammar image. I recommend to store this at `~/delphin/erg.dat`. You can compile your own grammar image with ACE or download a pre-compiled image. More info from the [ACE website](http://sweaglesw.org/linguistics/ace/).

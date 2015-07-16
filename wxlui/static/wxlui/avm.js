@@ -16,13 +16,15 @@ $(document).ready(function() {
 	click: function() {
 	    var target = $(this).parent().children().eq(-1);
 	    var visibleStyle = "block"; // Default to block for sub-avms
-	    if ($(target).prop("tagName").toLowerCase() == "p") {
-		visibleStyle = "inline-block";
-	    }
-	    if (target.css('display') == 'none') {
-		target.css('display', visibleStyle);
-	    } else {
-		target.css('display','none');
+	    if (!$(target).parent().hasClass("IgdeCoreferenceTag")) {
+		if ($(target).prop("tagName").toLowerCase() == "p" || target.hasClass("IgdeCoreferenceTag")) {
+		    visibleStyle = "inline-block";
+		}
+		if (target.css('display') == 'none') {
+		    target.css('display', visibleStyle);
+		} else {
+		    target.css('display','none');
+		}
 	    }
 	}
     }, ".typedFeatureStructure div > p");

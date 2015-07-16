@@ -16,6 +16,8 @@
 
 .typedFeatureStructure ul li ul {
     margin-left: 1.5rem;
+    border-left: 1px solid black;
+    padding-left: 8px;
 }
 
 
@@ -29,6 +31,27 @@
     margin: 0px 2px;
 }
 
+
 .typedFeatureStructure li > p {
     margin-left: .75rem;
+}
+
+
+.typedFeatureStructure .IgdeCoreferenceTag {
+    display: inline-block;
+}
+
+
+.typedFeatureStructure .IgdeCoreferenceTag p {
+    margin: 0;
+}
+
+
+.typedFeatureStructure .IgdeCoreferenceTag {
+    color: #0000FF;
+}
+
+
+.typedFeatureStructure .IgdeCoreferenceTag:hover {
+    color: #00CCFF;
 }

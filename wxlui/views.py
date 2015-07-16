@@ -8,7 +8,6 @@ views.py
 # General imports
 import sys
 import logging
-#import redis
 
 # App imports
 from .models import Comments, User

@@ -174,8 +174,12 @@ class IgdeXmrs(Xmrs):
 
 
 class IgdeHandleConstraint(HandleConstraint):
+    """
+    Loads a PyDelphin.delphin.mrs.components.HandleConstraint object
+    and adds additional output methods, specifically output_HTML()
+    """
 
-    format = """<div class="mrsHandleConstraint">{hi}<p class="mrsHandleConstraintRelation"> {relation} </p>{lo}</div>"""
+    format = """<div class="{CONSTRAINT_CLASS}">{hi}<p class="{RELATION_CLASS}"> {relation} </p>{lo}</div>"""
 
     def __init__(self, other):
         """
@@ -197,7 +201,7 @@ class IgdeHandleConstraint(HandleConstraint):
     def __repr__(self):
         return "<{}: {} at {}>".format(self.__class__.__name__, str(self), id(self))
 
-    def output_HTML(self):
+    def output_HTML(self, html_handle_constraint_class="mrsHandleConstraint", html_handle_relation_class="mrsHandleConstraintRelation"):
         """
         Format:
             <div><p id="{hi}" class="hi">{hi}</p><p> {relation} </p><p id="{lo}" class="lo">{lo}</p></div>
@@ -205,10 +209,15 @@ class IgdeHandleConstraint(HandleConstraint):
         return IgdeHandleConstraint.format.format(
             hi=IgdeArgument(self.hi, "hi").output_HTML(),
             relation=self.relation,
-            lo=IgdeArgument(self.lo, "lo").output_HTML())
+            lo=IgdeArgument(self.lo, "lo").output_HTML(),
+            CONSTRAINT_CLASS=html_handle_constraint_class,
+            RELATION_CLASS=html_handle_relation_class)
 
 
 class IgdeInformationConstraint(object):
+    """
+    TODO: This
+    """
 
     def __init__(self, other):
         """
@@ -220,6 +229,11 @@ class IgdeInformationConstraint(object):
 
 
 class IgdeElementaryPredication(ElementaryPredication):
+    """
+    Loads a PyDelphin.delphin.mrs.components.ElementaryPredication object
+    and adds additional output methods, specifically output_HTML()
+    """
+
 
     def __init__(self, other):
         """
@@ -268,6 +282,10 @@ class IgdeElementaryPredication(ElementaryPredication):
 
 
 class IgdeArgument(Argument):
+    """
+    Loads a PyDelphin.delphin.mrs.components.Argument object
+    and adds additional output methods, specifically output_HTML()
+    """
 
     format = """<p id="{value}" class="mrsVar mrsVar_{value}">{value}</p>"""
 
@@ -279,18 +297,14 @@ class IgdeArgument(Argument):
         self.sort = sort
         self.properties = properties # OrderedDict
 
-
     def __str__(self):
         return str(self.value)
-
 
     def __repr__(self):
         return "<{}: {} at {}>".format(self.__class__.__name__, str(self), id(self))
 
-
     def output_HTML(self):
         return self.__class__.format.format(value=self.value)
-
 
     def output_properties_HTML(self, propertiesClass="mrsRelationProperties", propertiesValuesClass="mrsPropertiesValues", propertiesBracketsClass="mrsPropertiesBracket"):
         if not self.value.properties:
@@ -301,6 +315,16 @@ class IgdeArgument(Argument):
 
 
 class IgdeTypedFeatureStructure(TypedFeatureStructure):
+    """
+    Loads a PyDelphin.delphin.tfs.TypedFeatureStructure object
+    and adds additional output methods, specifically output_HTML()
+    """
+
+    top_formatter = "<div class=\"{html_class}\"><ul>{values}</ul></div>"
+    formatter = "<li{CLASS}{STYLE}><p>{TYPE_NAME}</p><ul>{VALUES}{SUB_AVMS}</ul></li>"
+    values_formatter = "<div><p>{key}</p><p>:</p>{value}</div>"
+    string_formatter = "<p>{}</p>"
+
 
     def __init__(self, other):
         """
@@ -325,23 +349,58 @@ class IgdeTypedFeatureStructure(TypedFeatureStructure):
         Adapted from http://jsonviewer.stack.hu
         """
 
-        top_formatter = "<div class=\"{html_class}\"><ul>{values}</ul></div>"
-        formatter = "<li{CLASS}{STYLE}><p>{TYPE_NAME}</p><ul>{VALUES}{SUB_AVMS}</ul></li>"
-        values_formatter = "<div><p>{key}</p><p>:</p>{value}</div>"
-        string_formatter = "<p>{}</p>"
-
         values = {key: value for key, value in self._avm.items() if not isinstance(value, TypedFeatureStructure)}
         sub_avms = {key: value for key, value in self._avm.items() if key not in values}
 
         values = {
             "CLASS": " class=\"terminal\"" if not self._avm else "",
             "TYPE_NAME": self._type,
-            "VALUES": "".join(values_formatter.format(key=key, value=string_formatter.format(value)) for key, value in values.items()) if self._avm else "",
-            "SUB_AVMS": "".join(values_formatter.format(key=key, value=IgdeTypedFeatureStructure(value).output_HTML(top=False)) for key, value in sub_avms.items()) if self._avm else "",
-            "STYLE": " style=\"display:none\"" if not top else "",
+            "VALUES": "".join(self.values_formatter.format(key=key, value=self.get_value(value)) for key, value in values.items()) if self._avm else "",
+            "SUB_AVMS": "".join(self.values_formatter.format(key=key, value=IgdeTypedFeatureStructure(value).output_HTML(top=False)) for key, value in sub_avms.items()) if self._avm else "",
+            "STYLE": " style=\"display:none\"" if not top else "", # Hide sub-AVMs by default, not values
         }
         # Return result
-        result = formatter.format(**values)
+        result = self.formatter.format(**values)
         if top:
-            result = top_formatter.format(values=result, html_class=html_class)
+            result = self.top_formatter.format(values=result, html_class=html_class)
         return result
+
+
+    def get_value(self, string, html_class="IgdeCoreferenceTag"):
+        """
+        Given a value, either return the value or IgdeCoreferenceTag HTML
+        """
+        if IgdeCoreferenceTag.is_coreference(string):
+            return IgdeCoreferenceTag(string[1:-1]).output_HTML(html_class=html_class)
+        return IgdeTypedFeatureStructure.string_formatter.format(string)
+
+
+
+class IgdeCoreferenceTag(object):
+    """
+    For loading and displaying AVM coreference tags
+    """
+
+    formatter = "<div{CLASSES}><p><</p><p>{VALUE}</p><p>></p></div>"
+
+
+    def __init__(self, id):
+        try:
+            self.id = int(id)
+        except ValueError:
+            raise ValueError("IgdeCoreferenceTag parameter \"id\" must be an integer.")
+
+
+    @staticmethod
+    def is_coreference(value):
+        return value.startswith("<") and value.endswith(">") and value[1:-1].isdigit()
+
+
+    def output_HTML(self, html_class="IgdeCoreferenceTag"):
+        values = {
+            "CLASSES":" class=\"{} {}\"".format(html_class, "coref_{}".format(self.id)),
+            "VALUE": self.id,
+        }
+        return IgdeCoreferenceTag.formatter.format(**values)
+
+
