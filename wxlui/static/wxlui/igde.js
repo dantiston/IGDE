@@ -15,8 +15,17 @@
  *  
  */
 
+// Constants
 var sockethost = 'localhost';
 var socketport = 4000;
+
+// Functions
+
+/*** Parsing ***/
+
+
+/*** REQUESTING MRS/AVM ***/
+
 
 
 // Tooltip
@@ -33,6 +42,7 @@ $(document).tooltip({
         }
     }
 });
+
 
 // Page loader
 $(document).ready(function(){
@@ -51,16 +61,20 @@ $(document).ready(function(){
 
     /*** PARSING ***/
     function requestParse(entry_el) {
+	/** 
+	 * This method interacts with the socket.
+         **/
 	var msg = entry_el.prop('value');
 	if (msg) {
 	    console.log("Requesting parse for \"" + msg + "\"");
 	    socket.emit('parse', msg, function(data) {
-		console.log(data);
-	    });
+		    console.log(data);
+		});
 	    //Clear input value
 	    entry_el.prop('value', '');
 	}
     }
+
 
     entry_element.keypress(function(event) {
         if (event.keyCode != 13) return;
@@ -73,12 +87,15 @@ $(document).ready(function(){
 
     /*** REQUESTING MRS/AVM ***/
     function requestTfs(tree_id, edge_id, what) {
+	/** 
+	 * This method interacts with the socket.
+         **/
 	if (tree_id && edge_id && what) {
 	    var msg = "request " + tree_id + " " + edge_id + " " + what;
-	    console.log("Requesting " + what + "for \"" + msg + "\"");
+	    console.log("Sending \"" + msg + "\"");
 	    socket.emit('request', msg, function(data) {
-		console.log(data);
-	    });
+		    console.log(data);
+		});
 	}
     }
 
@@ -120,4 +137,10 @@ $(document).ready(function(){
         window.scrollTo(0, 0);
         entry_element.focus();
     });
+
+    /*** Item management ***/
+    // Delete button // TODO: Make this work!
+    $('#parses').on('click', '.deleteButton', function() {
+	    $(this).parent().remove();
+	});
 });

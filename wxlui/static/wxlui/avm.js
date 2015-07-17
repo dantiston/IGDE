@@ -9,24 +9,54 @@
  *
  */
 
+// Constants
+var coreferenceColorDefault = "#0000FF";
+var coreferenceColorHover = "#00CCFF";
+
+
+// Highlight coreference
+prefix = "coref_";
+function highlightCoreference(domElement, color) {
+    var element = $(domElement);
+    if (typeof element.attr("class") !== "undefined") {
+	var className = getLastClassName(element);
+	if (className.substring(0, prefix.length) == prefix) {
+	    var closest = element.closest(".typedFeatureStructure");
+	    closest.find("."+className).css("color", color);
+	}
+    }
+}
+
+function getLastClassName(object) {
+    return object.attr("class").split(" ").slice(-1)[0];
+}
+
+
 $(document).ready(function() {
 
     // AVM values toggle when clicking key
     $("#parses").on({
 	click: function() {
 	    var target = $(this).parent().children().eq(-1);
-	    var visibleStyle = "block"; // Default to block for sub-avms
-	    if (!$(target).parent().hasClass("IgdeCoreferenceTag")) {
-		if ($(target).prop("tagName").toLowerCase() == "p" || target.hasClass("IgdeCoreferenceTag")) {
-		    visibleStyle = "inline-block";
-		}
-		if (target.css('display') == 'none') {
-		    target.css('display', visibleStyle);
-		} else {
-		    target.css('display','none');
-		}
+	    if (!($(target).parent().hasClass("IgdeCoreferenceTag") ||
+		  $(target).hasClass("IgdeCoreferenceTag") ||
+		  $(target).prop("tagName").toLowerCase() == "p")) {
+		target.toggle();
 	    }
 	}
     }, ".typedFeatureStructure div > p");
+
+    // Highlight coreference tags // Assumes the last class is in the form coref_X
+    $("#parses").on({
+	    mouseenter: function () {
+		highlightCoreference($(this).parent(), coreferenceColorHover);
+	    },
+	    mouseleave: function () {
+		highlightCoreference($(this).parent(), coreferenceColorDefault);
+	    }
+	}, ".IgdeCoreferenceTag p");
+
+
+    // Click through coreference tags
 
 });

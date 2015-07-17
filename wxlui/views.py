@@ -58,15 +58,12 @@ def parse(request):
         html = (IgdeDerivation(lui.load_derivations(item)[0]).output_HTML()
                     for item in results)
 
+        # Result is wrapped in a div
         result = "<h3>{}</h3><h5>  ({} parses)</h5>".format(text, len(results))
         resultFormat = "<li>{}</li>"
-        result += "<ul>{}</ul><hr/>".format("".join(resultFormat.format(item) for item in html))
+        result += "<ul>{}</ul><hr/></div>".format("".join(resultFormat.format(item) for item in html))
+        result = makeDeleteable(result)
 
-        # Once datum has been parsed, send it back to user
-        #r = redis.StrictRedis(host='localhost', port=6379, db=0)
-        #r.publish('chat', result)
-
-        #return HttpResponse("Everything worked :)")
         return HttpResponse(result)
 
     except Exception as e:
@@ -114,14 +111,18 @@ def request(request):
         command_name = simple_names[command] if command in simple_names else command
 
         result = "<h5>({} for tree {})</h5><ul><li>{}</li></ul><hr/>".format(command_name, tree_ID, html)
+        result = makeDeleteable(result)
+        
 
-        # Once item has been retrieved, send it back to user
-        #r = redis.StrictRedis(host='localhost', port=6379, db=0)
-        #r.publish('chat', result)
-
-        #return HttpResponse("Everything worked :)")
         return HttpResponse(result)
 
     except Exception as e:
         logger.debug(str(e))
         return HttpResponseServerError(str(e))
+
+
+# TODO: Move this to some constants library or something
+delete_button = "<div type='button' class='deleteButton secondary button'>X</div>"
+
+def makeDeleteable(string):
+    return "".join(("<div>", delete_button, string, "</div>"))

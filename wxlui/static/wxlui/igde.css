@@ -22,3 +22,20 @@ button {
     font-family: arial, verdana, tahoma;
     font-size: 12px;
 }
+
+.deleteButton {
+    border: solid black 1px;
+    border-radius: 2px;
+    width: 20px;
+    height: 20px;
+    margin: 0px;
+    padding: 0px;
+    margin-right: 10px;
+    
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
