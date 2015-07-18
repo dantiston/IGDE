@@ -58,11 +58,11 @@ def parse(request):
         html = (IgdeDerivation(lui.load_derivations(item)[0]).output_HTML()
                     for item in results)
 
-        # Result is wrapped in a div
-        result = "<h3>{}</h3><h5>  ({} parses)</h5>".format(text, len(results))
+        header = "<h3>{}</h3><h5>  ({} parses)</h5>".format(text, len(results))
         resultFormat = "<li>{}</li>"
-        result += "<ul>{}</ul><hr/></div>".format("".join(resultFormat.format(item) for item in html))
-        result = makeDeleteable(result)
+        result = "<ul>{}</ul><hr/></div>".format("".join(resultFormat.format(item) for item in html))
+        result = "".join((header, result))
+        result = makeIgdeObject(result)
 
         return HttpResponse(result)
 
@@ -111,7 +111,7 @@ def request(request):
         command_name = simple_names[command] if command in simple_names else command
 
         result = "<h5>({} for tree {})</h5><ul><li>{}</li></ul><hr/>".format(command_name, tree_ID, html)
-        result = makeDeleteable(result)
+        result = makeIgdeObject(result)
         
 
         return HttpResponse(result)
@@ -122,7 +122,12 @@ def request(request):
 
 
 # TODO: Move this to some constants library or something
-delete_button = "<div type='button' class='deleteButton secondary button'>X</div>"
+delete_button = "<div type='button' class='deleteButton igdeButton secondary button'>X</div>"
+collapse_button = "<div type='button' class='collapseButton igdeButton secondary button'>-</div>"
 
-def makeDeleteable(string):
-    return "".join(("<div>", delete_button, string, "</div>"))
+def makeIgdeObject(string):
+    """
+    Given an HTML snippet as a string, insert IGDE object controls,
+    such as delete, collapse, etc.
+    """
+    return "".join(("<div>", delete_button, collapse_button, string, "</div>"))

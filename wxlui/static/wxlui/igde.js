@@ -19,14 +19,6 @@
 var sockethost = 'localhost';
 var socketport = 4000;
 
-// Functions
-
-/*** Parsing ***/
-
-
-/*** REQUESTING MRS/AVM ***/
-
-
 
 // Tooltip
 $(document).tooltip({
@@ -139,8 +131,13 @@ $(document).ready(function(){
     });
 
     /*** Item management ***/
-    // Delete button // TODO: Make this work!
+    // Delete button
     $('#parses').on('click', '.deleteButton', function() {
 	    $(this).parent().remove();
+	});
+
+    // Collapse button
+    $('#parses').on('click', '.collapseButton', function() {
+	    $(this).parent().children().eq(-2).toggle();
 	});
 });
