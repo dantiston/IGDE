@@ -37,9 +37,9 @@ logger = logging.getLogger(__name__)
 # TODO: Home shouldn't have login required. Need to keep track of sessions
 # and attach the parser instance to them. The parser should open and close
 # with the browser connection.
-@login_required
+#@login_required
 def home(request):
-    comments = Comments.objects.select_related().all()[0:100]
+    #comments = Comments.objects.select_related().all()[0:100]
     return render(request, 'index.html', locals())
 
 

@@ -112,6 +112,7 @@ class IgdeXmrs(Xmrs):
         self.surface = other.surface
         self.identifier = other.identifier
 
+
     def output_HTML(self):
         """
         Returns HTML representation of MRS in the following format:
@@ -191,6 +192,7 @@ class IgdeHandleConstraint(HandleConstraint):
         self.relation = other.relation
         self.lo = other.lo
 
+
     def __str__(self):
         """
         Format:
@@ -198,8 +200,10 @@ class IgdeHandleConstraint(HandleConstraint):
         """
         return " ".join(map(str, (self.hi, self.relation, self.lo)))
 
+
     def __repr__(self):
         return "<{}: {} at {}>".format(self.__class__.__name__, str(self), id(self))
+
 
     def output_HTML(self, html_handle_constraint_class="mrsHandleConstraint", html_handle_relation_class="mrsHandleConstraintRelation"):
         """
@@ -245,6 +249,7 @@ class IgdeElementaryPredication(ElementaryPredication):
         self.label = IgdeArgument(other.label, "label")
         self.pred = other.pred
         self.argdict = other.argdict
+
 
     def output_HTML(self, html_class="mrsRelation"):
         """
@@ -297,14 +302,18 @@ class IgdeArgument(Argument):
         self.sort = sort
         self.properties = properties # OrderedDict
 
+
     def __str__(self):
         return str(self.value)
+
 
     def __repr__(self):
         return "<{}: {} at {}>".format(self.__class__.__name__, str(self), id(self))
 
+
     def output_HTML(self):
         return self.__class__.format.format(value=self.value)
+
 
     def output_properties_HTML(self, propertiesClass="mrsRelationProperties", propertiesValuesClass="mrsPropertiesValues", propertiesBracketsClass="mrsPropertiesBracket"):
         if not self.value.properties:
@@ -321,7 +330,7 @@ class IgdeTypedFeatureStructure(TypedFeatureStructure):
     """
 
     top_formatter = "<div class=\"{html_class}\"><ul>{values}</ul></div>"
-    formatter = "<li{CLASS}{STYLE}><p>{TYPE_NAME}</p><ul>{VALUES}{SUB_AVMS}</ul></li>"
+    formatter = "<li{CLASS}{STYLE}>{COREF}{TYPE_NAME}<ul>{VALUES}{SUB_AVMS}</ul></li>"
     values_formatter = "<div><p>{key}</p><p>:</p>{value}</div>"
     string_formatter = "<p>{}</p>"
 
@@ -331,12 +340,26 @@ class IgdeTypedFeatureStructure(TypedFeatureStructure):
         For creating copies of TypedFeatureStructure objects
         """
         if not isinstance(other, TypedFeatureStructure):
-            raise TypeError("{} constructor passed object of type {}, must be of type TypedFeatureStructure".format(__class__.__name__, other.__class__.__name__))
+            raise TypeError("{} constructor passed object of type {}, must be of type TypedFeatureStructure".format(
+                    __class__.__name__,
+                    other.__class__.__name__))
         self._avm = other._avm
         try:
             self._type = other._type
         except AttributeError:
             self._type = None
+        try:
+            self._coref = other._coref
+        except AttributeError:
+            self._coref = None
+        try:
+            self._avm_ID = other._avm_ID
+        except AttributeError:
+            self._avm_ID = None
+        try:
+            self._coref = other._coref
+        except AttributeError:
+            self._coref = other._coref
 
 
     def output_HTML(self, html_class="typedFeatureStructure", top=True):
@@ -349,15 +372,16 @@ class IgdeTypedFeatureStructure(TypedFeatureStructure):
         Adapted from http://jsonviewer.stack.hu
         """
 
-        values = {key: value for key, value in self._avm.items() if not isinstance(value, TypedFeatureStructure)}
+        values = {key: value for key, value in self._avm.items() if not value._avm}
         sub_avms = {key: value for key, value in self._avm.items() if key not in values}
 
         values = {
             "CLASS": " class=\"terminal\"" if not self._avm else "",
-            "TYPE_NAME": self._type,
-            "VALUES": "".join(self.values_formatter.format(key=key, value=self.get_value(value)) for key, value in values.items()) if self._avm else "",
-            "SUB_AVMS": "".join(self.values_formatter.format(key=key, value=IgdeTypedFeatureStructure(value).output_HTML(top=False)) for key, value in sub_avms.items()) if self._avm else "",
+            "TYPE_NAME": self.string_formatter.format(self._type) if self._type else "",
+            "VALUES": self._format_values(values),
+            "SUB_AVMS": self._format_values(sub_avms),
             "STYLE": " style=\"display:none\"" if not top else "", # Hide sub-AVMs by default, not values
+            "COREF": IgdeCoreferenceTag(self._coref).output_HTML() if self._coref else "",
         }
         # Return result
         result = self.formatter.format(**values)
@@ -366,14 +390,14 @@ class IgdeTypedFeatureStructure(TypedFeatureStructure):
         return result
 
 
-    def get_value(self, string, html_class="IgdeCoreferenceTag"):
-        """
-        Given a value, either return the value or IgdeCoreferenceTag HTML
-        """
-        if IgdeCoreferenceTag.is_coreference(string):
-            return IgdeCoreferenceTag(string[1:-1]).output_HTML(html_class=html_class)
-        return IgdeTypedFeatureStructure.string_formatter.format(string)
-
+    def _format_values(self, values):
+        result = ""
+        if values:
+            result = "".join(self.values_formatter.format(
+                    key=key,
+                    value=IgdeTypedFeatureStructure(value).output_HTML(top=False))
+                             for key, value in values.items())
+        return result
 
 
 class IgdeCoreferenceTag(object):
@@ -396,11 +420,18 @@ class IgdeCoreferenceTag(object):
         return value.startswith("<") and value.endswith(">") and value[1:-1].isdigit()
 
 
+    @staticmethod
+    def get_coreference_value(value):
+        if value.endswith("="):
+            value = value[:-1]
+        if IgdeCoreferenceTag.is_coreference(value):
+            return value[1:-1]
+        return None
+
+
     def output_HTML(self, html_class="IgdeCoreferenceTag"):
         values = {
             "CLASSES":" class=\"{} {}\"".format(html_class, "coref_{}".format(self.id)),
             "VALUE": self.id,
         }
         return IgdeCoreferenceTag.formatter.format(**values)
-
-

@@ -4,16 +4,24 @@
  *
  * igde.css
  * 
+ * HTML Styling for fundamental IGDE objects
+ * 
  */
 
 input {
     width: 83.3333% !important;
+    height: 40px !important;
 }
 
 button {
     padding-top: 0.55em !important;
     padding-bottom: 0.55em !important;
-    margin: 0 0 0 5px;
+    border: 1px solid #d8d8d8 !important;
+    height: 40px !important;
+}
+
+footer {
+    padding-bottom: 50px;
 }
 
 /* Font */
