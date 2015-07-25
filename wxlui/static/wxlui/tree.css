@@ -1,21 +1,27 @@
 /*
  * Integrated Grammar Development Environment
  * @author: T.J. Trimble
- * 
- * From:
+ *
+ * Adapted from:
  * http://thecodeplayer.com/walkthrough/css3-family-tree
- * 
- * Adapted for IGDE
+ *
  */
 
 /* Top level elements (above derivationTrees, below #parses) */
 
 ul#parses ul li {
-    list-style-type: none
+    list-style-type: none;
+    display: inline-block;
+}
+
+ul#parses ul div {
+    list-style: none;
+    position: relative;
+    margin-left: 30px;
 }
 
 ul#parses h3, ul#parses h5 {
-    display:inline;
+    display: inline-block;
 }
 
 /* derivationTree styles */
@@ -32,7 +38,7 @@ ul#parses h3, ul#parses h5 {
 .derivationTree ul {
     padding-top: 15px;
     position: relative;
-	
+
     transition: all 0.1s;
     -webkit-transition: all 0.1s;
     -moz-transition: all 0.1s;
@@ -44,7 +50,7 @@ ul#parses h3, ul#parses h5 {
     list-style-type: none;
     position: relative;
     padding: 15px 5px 0 5px;
-    
+
     transition: all 0.1s;
     -webkit-transition: all 0.1s;
     -moz-transition: all 0.1s;
@@ -54,14 +60,14 @@ ul#parses h3, ul#parses h5 {
 
 .derivationTree li::before, .derivationTree li::after {
     content: '';
-    
+
     position: absolute;
     top: 0;
     right: 50%;
-    
+
     width: 50%;
     height: 15px;
-    
+
     border-top: 1px solid #ccc;
 }
 
@@ -125,11 +131,11 @@ ul#parses h3, ul#parses h5 {
     border: 1px solid #ccc;
     padding: 5px 10px;
     display: inline-block;
-    
+
     border-radius: 5px;
     -webkit-border-radius: 5px;
     -moz-border-radius: 5px;
-    
+
     transition: all 0.1s;
     -webkit-transition: all 0.1s;
     -moz-transition: all 0.1s;
@@ -165,7 +171,15 @@ ul#parses h3, ul#parses h5 {
 
 /* Hover effect */
 .derivationTree li p:hover, .derivationTree li.terminal:hover {
-    background: #c8e4f8; 
+    background: #c8e4f8;
     color: #000;
 }
 
+/* Request MRS button */
+button.mrsButton {
+    display: inline-block;
+    position: absolute;
+    height: 40px !important;
+    width: 60px;
+    margin-left: -30px;
+}

@@ -89,6 +89,17 @@ class IgdeDerivation(Derivation):
             result = top_formatter.format(tree_ID=tree_ID, values=result, html_class=html_class)
         return result
 
+    @staticmethod
+    def addMrsButton(string, html_classes="mrsButton igdeButton secondary button"):
+        button = "<button type='button' class='{}'>MRS</button>".format(
+            html_classes
+        )
+        return "".join(("<div>",
+                        button,
+                        string,
+                        "</div>"))
+
+
 
 class IgdeXmrs(Xmrs):
     """
