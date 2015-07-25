@@ -9,6 +9,7 @@
  *
  */
 
+
 .typedFeatureStructure {
     margin: 5px 5px;
 }
@@ -37,6 +38,11 @@
 }
 
 
+.typedFeatureStructure li > .IgdeCoreferenceTag + p {
+    margin-left: .4rem;
+}
+
+
 .typedFeatureStructure .IgdeCoreferenceTag {
     display: inline-block;
 }
@@ -49,6 +55,7 @@
 
 .typedFeatureStructure .IgdeCoreferenceTag {
     color: #0000FF;
+    margin-left: .75rem;
 }
 
 

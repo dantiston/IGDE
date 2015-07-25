@@ -27,6 +27,7 @@ function highlightCoreference(domElement, color) {
     }
 }
 
+
 function getLastClassName(object) {
     return object.attr("class").split(" ").slice(-1)[0];
 }
@@ -41,13 +42,15 @@ $(document).ready(function() {
 	    if (!($(target).parent().hasClass("IgdeCoreferenceTag") ||
 		  $(target).hasClass("IgdeCoreferenceTag") ||
 		  $(target).prop("tagName").toLowerCase() == "p" ||
-		  $(target).siblings().eq(-1).hasClass("terminal"))) {
+		  $(target).parent().children().eq(-1).hasClass("terminal"))) {
 		target.toggle();
 	    }
 	}
     }, ".typedFeatureStructure div > p");
 
-    // Highlight coreference tags // Assumes the last class is in the form coref_X
+
+    // Highlight coreference tags
+    // Assumes the last class is in the form coref_X
     $("#parses").on({
 	    mouseenter: function () {
 		highlightCoreference($(this).parent(), coreferenceColorHover);

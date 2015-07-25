@@ -12,12 +12,13 @@ import logging
 # App imports
 from .models import Comments, User
 from .models import IgdeDerivation, IgdeXmrs, IgdeTypedFeatureStructure
+from .constants import Constants
 
 # PyDelphin imports
 from delphin.interfaces import lui
 from delphin.interfaces.ace import InteractiveAce
 
-# Django imports    
+# Django imports
 from django.shortcuts import render
 from django.http import HttpResponse, HttpResponseServerError
 from django.views.decorators.csrf import csrf_exempt
@@ -109,7 +110,7 @@ def request(request):
 
         result = "<h5>({} for tree {})</h5><ul><li>{}</li></ul><hr/>".format(command_name, tree_ID, html)
         result = makeIgdeObject(result)
-        
+
 
         return HttpResponse(result)
 
@@ -118,13 +119,13 @@ def request(request):
         return HttpResponseServerError(str(e))
 
 
-# TODO: Move this to some constants library or something
-delete_button = "<div type='button' class='deleteButton igdeButton secondary button'>X</div>"
-collapse_button = "<div type='button' class='collapseButton igdeButton secondary button'>-</div>"
-
 def makeIgdeObject(string):
     """
     Given an HTML snippet as a string, insert IGDE object controls,
     such as delete, collapse, etc.
     """
-    return "".join(("<div>", delete_button, collapse_button, string, "</div>"))
+    return "".join(("<div>",
+                    Constants.delete_button,
+                    Constants.collapse_button,
+                    string,
+                    "</div>"))
