@@ -40,7 +40,8 @@ $(document).ready(function() {
 	    var target = $(this).parent().children().eq(-1);
 	    if (!($(target).parent().hasClass("IgdeCoreferenceTag") ||
 		  $(target).hasClass("IgdeCoreferenceTag") ||
-		  $(target).prop("tagName").toLowerCase() == "p")) {
+		  $(target).prop("tagName").toLowerCase() == "p" ||
+		  $(target).siblings().eq(-1).hasClass("terminal"))) {
 		target.toggle();
 	    }
 	}
@@ -58,5 +59,10 @@ $(document).ready(function() {
 
 
     // Click through coreference tags
+    $("#parses").on({
+	    click: function() {
+		alert("Not implemented yet!")
+	    }
+	}, ".typedFeatureStructure div > li > .IgdeCoreferenceTag");
 
 });

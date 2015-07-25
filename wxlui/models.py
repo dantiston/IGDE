@@ -380,7 +380,7 @@ class IgdeTypedFeatureStructure(TypedFeatureStructure):
             "TYPE_NAME": self.string_formatter.format(self._type) if self._type else "",
             "VALUES": self._format_values(values),
             "SUB_AVMS": self._format_values(sub_avms),
-            "STYLE": " style=\"display:none\"" if not top else "", # Hide sub-AVMs by default, not values
+            "STYLE": " style=\"display:none\"" if self._avm and not top else "", # Hide sub-AVMs by default, not values
             "COREF": IgdeCoreferenceTag(self._coref).output_HTML() if self._coref else "",
         }
         # Return result
@@ -395,8 +395,8 @@ class IgdeTypedFeatureStructure(TypedFeatureStructure):
         if values:
             result = "".join(self.values_formatter.format(
                     key=key,
-                    value=IgdeTypedFeatureStructure(value).output_HTML(top=False))
-                             for key, value in values.items())
+                    value=self.__class__(value).output_HTML(top=False))
+                             for key, value in sorted(values.items()))
         return result
 
 
@@ -412,7 +412,7 @@ class IgdeCoreferenceTag(object):
         try:
             self.id = int(id)
         except ValueError:
-            raise ValueError("IgdeCoreferenceTag parameter \"id\" must be an integer.")
+            raise ValueError("{} parameter \"id\" must be an integer.".format(self.__class__))
 
 
     @staticmethod
@@ -424,7 +424,7 @@ class IgdeCoreferenceTag(object):
     def get_coreference_value(value):
         if value.endswith("="):
             value = value[:-1]
-        if IgdeCoreferenceTag.is_coreference(value):
+        if self.__class__.is_coreference(value):
             return value[1:-1]
         return None
 
@@ -434,4 +434,4 @@ class IgdeCoreferenceTag(object):
             "CLASSES":" class=\"{} {}\"".format(html_class, "coref_{}".format(self.id)),
             "VALUE": self.id,
         }
-        return IgdeCoreferenceTag.formatter.format(**values)
+        return self.__class__.formatter.format(**values)

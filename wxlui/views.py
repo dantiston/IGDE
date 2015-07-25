@@ -27,9 +27,7 @@ from django.contrib.auth.decorators import login_required
 
 # Initiate ACE
 # TODO: Move this to being attached to a user
-from os.path import expanduser
-home = expanduser("~")
-ace = InteractiveAce(home + "/delphin/erg.dat")
+ace = InteractiveAce("~/delphin/erg.dat")
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +37,6 @@ logger = logging.getLogger(__name__)
 # with the browser connection.
 #@login_required
 def home(request):
-    #comments = Comments.objects.select_related().all()[0:100]
     return render(request, 'index.html', locals())
 
 

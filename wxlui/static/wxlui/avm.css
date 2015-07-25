@@ -55,3 +55,8 @@
 .typedFeatureStructure .IgdeCoreferenceTag:hover {
     color: #00CCFF;
 }
+
+
+.typedFeatureStructure .terminal {
+    display: inline-block;
+}
