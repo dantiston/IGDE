@@ -15,12 +15,12 @@ var coreferenceColorHover = "#00CCFF";
 
 
 // Highlight coreference
-prefix = "coref_";
+coref_prefix = "coref_";
 function highlightCoreference(domElement, color) {
     var element = $(domElement);
     if (typeof element.attr("class") !== "undefined") {
 	var className = getLastClassName(element);
-	if (className.substring(0, prefix.length) == prefix) {
+	if (className.substring(0, coref_prefix.length) == coref_prefix) {
 	    var closest = element.closest(".typedFeatureStructure");
 	    closest.find("."+className).css("color", color);
 	}

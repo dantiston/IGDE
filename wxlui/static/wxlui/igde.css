@@ -24,6 +24,23 @@ footer {
     padding-bottom: 50px;
 }
 
+ul {
+   margin-left: 0;
+}
+
+ul > div {
+   margin-left: 30px;
+}
+
+.mrsButton {
+    position: relative;
+    margin-left: 30px;
+}
+
+#parses > div > h3 + h5 {
+   margin-left: 10px;
+}
+
 /* Font */
 .derivationTree li p, .ui-tooltip, mrsVar {
     text-decoration: none;

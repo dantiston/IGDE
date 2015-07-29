@@ -56,7 +56,7 @@ def parse(request):
         html = (IgdeDerivation(lui.load_derivations(item)[0]).output_HTML()
                     for item in results)
 
-        header = "<h3>{}</h3><h5>  ({} parses)</h5>".format(text, len(results))
+        header = "<h3>{}</h3><h5>({} parses)</h5>".format(text, len(results))
         resultFormat = IgdeDerivation.addMrsButton("<li>{}</li>")
         result = "<ul>{}</ul><hr/></div>".format("".join(resultFormat.format(item) for item in html))
         result = "".join((header, result))

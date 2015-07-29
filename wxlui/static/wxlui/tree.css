@@ -14,7 +14,7 @@ ul#parses ul li {
     display: inline-block;
 }
 
-ul#parses ul div {
+ul#parses ul div.derivationTree {
     list-style: none;
     position: relative;
     margin-left: 30px;

@@ -16,11 +16,11 @@ var mrsVarColorSecondaryHover = "#33CC33";
 
 
 // Highlight MRS variable
-prefix = "mrsVar_";
+mrs_prefix = "mrsVar_";
 function highlightMrsVar(domElement, color, secondaryColor) {
     var element = $(domElement);
     var className = getLastClassName(element);
-    if (className.substring(0, prefix.length) == prefix) {
+    if (className.substring(0, mrs_prefix.length) == mrs_prefix) {
 	var closest = element.closest(".mrsTable");
 	closest.find("."+className).css("color", color);
 	// Check for links
@@ -35,7 +35,7 @@ function highlightMrsVar(domElement, color, secondaryColor) {
 }
 
 function getLastClassName(object) {
-    return object.attr("class").split(" ").slice(-1)[0];
+    return $(object).attr("class").split(" ").eq(-1);
 }
 
 
@@ -58,6 +58,6 @@ $(document).ready(function() {
 	mouseleave: function () {
 	    highlightMrsVar(this, mrsVarColorDefault, mrsVarColorDefault);
 	}
-    }, ".mrsTable p");
+    }, ".mrsTable .mrsVar");
     
 });

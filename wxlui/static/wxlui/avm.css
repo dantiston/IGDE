@@ -32,6 +32,11 @@
     margin: 0px 2px;
 }
 
+.typedFeatureStructure div > p {
+    display: table-cell;
+    vertical-align: middle;
+}
+
 
 .typedFeatureStructure li > p {
     margin-left: .75rem;
