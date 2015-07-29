@@ -82,6 +82,7 @@ $(document).ready(function(){
 	/** 
 	 * This method interacts with the socket.
          **/
+	console.log(tree_id + "; " + edge_id)
 	if (tree_id && edge_id && what) {
 	    var msg = "request " + tree_id + " " + edge_id + " " + what;
 	    console.log("Sending \"" + msg + "\"");
@@ -93,14 +94,14 @@ $(document).ready(function(){
 
     // On click, request MRS/AVM from the server
     $("#parses").on('click', ".derivationTree p", function() {
-	//requestTfs($(this).closest(".derivationTree").attr('id'), this.id, "mrs simple");
-	// TODO: Figure out the UX for requesting MRS vs AVM and implement here
 	requestTfs($(this).closest(".derivationTree").attr('id'), this.id, "avm");
     });
 
 
     $("#parses").on('click', ".mrsButton", function() {
-	requestTfs($(this).siblings('li').eq(-1).children(".derivationTree").eq(0).attr('id'), 1, "mrs simple");
+	requestTfs($(this).siblings('li').eq(-1).children(".derivationTree").eq(0).attr('id'),
+		   $(this).siblings('li').eq(-1).children(".derivationTree").eq(0).children().eq(0).children().eq(0).children().eq(0).attr('id'),
+		   "mrs simple");
     });
 
 
