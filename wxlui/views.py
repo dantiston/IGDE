@@ -51,7 +51,7 @@ def parse(request):
         #user = User.objects.get(id=user_id)
 
         # Parse text
-        text = request.POST.get('comment')
+        text = request.POST.get('comment') or request.GET.get('comment')
         results = lui.parse(ace, text)['RESULTS']
         html = (IgdeDerivation(lui.load_derivations(item)[0]).output_HTML()
                     for item in results)
@@ -65,6 +65,8 @@ def parse(request):
         return HttpResponse(result)
 
     except Exception as e:
+        import traceback
+        traceback.print_exc(e)
         logger.debug(str(e))
         return HttpResponseServerError(str(e))
 
