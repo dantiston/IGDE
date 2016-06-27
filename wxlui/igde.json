@@ -1,0 +1,5 @@
+{
+    "host":"localhost",
+    "socketport":3000,
+    "httpport":4000
+}

@@ -6,18 +6,18 @@
  *
  * jQuery for interacting with socket.io
  * Provides the following core functions:
- * 
+ *
  *     * requestParse: requests parse of the value in #comment
  *     * requestTfs: requests MRS or AVM
  *     * requestUnify: requests unification of two given tree_ID:edge_ID pairs
  *     * requestGenerate: requests generation of the given MRS
  *     * requestGrammarEntity: requests specified grammar entity
- *  
+ *
  */
 
-// Constants
-var sockethost = 'localhost';
-var socketport = 4000;
+// Constants // TODO: Move to config
+const sockethost = 'localhost';
+const socketport = 4000;
 
 
 // Tooltip
@@ -41,7 +41,8 @@ $(document).ready(function(){
 
     // Connect to server
     var socket = io.connect(sockethost, {port: socketport});
-    
+    // var socket = io();
+
     // Connection code
     socket.on('connect', function(){
         console.log("Successfully connected to server.");
@@ -53,7 +54,7 @@ $(document).ready(function(){
 
     /*** PARSING ***/
     function requestParse(entry_el) {
-	/** 
+	/**
 	 * This method interacts with the socket.
          **/
 	var msg = entry_el.prop('value');
@@ -79,7 +80,7 @@ $(document).ready(function(){
 
     /*** REQUESTING MRS/AVM ***/
     function requestTfs(tree_id, edge_id, what) {
-	/** 
+	/**
 	 * This method interacts with the socket.
          **/
 	console.log(tree_id + "; " + edge_id)
@@ -126,9 +127,9 @@ $(document).ready(function(){
 	console.log("Message received from server.")
 
         // Escape HTML characters
-	// TODO: Do better HTML escapingx
+	// TODO: Do better HTML escaping
         var data = message.replace(/&/g,"&amp;")
-	
+
         // Append message to the top of the list
         $('#parses').prepend(data);
         window.scrollTo(0, 0);

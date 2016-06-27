@@ -16,6 +16,7 @@ BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/1.7/howto/deployment/checklist/
 
+# TODO: Change this: https://code.djangoproject.com/wiki/SplitSettings
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = '-o9qquhmf#7z!ynu=sz^kv+*tliag5a*yix)yac+#mpw4nah8*'
 
@@ -53,6 +54,7 @@ ROOT_URLCONF = 'IGDE.urls'
 
 WSGI_APPLICATION = 'IGDE.wsgi.application'
 
+# TODO: Change this
 ADMINS = (
     ('dantiston', 'trimblet@me.com')
 )

@@ -1,32 +1,33 @@
 /*
  * igde.js
- * 
+ *
  * Serverside nodejs for socket.io requests
  *
  * Serves the following socket.io requests:
  *     parse: Receives a sentence to parse and requests parse from PyDelphin, returns HTML representation
  *     request: Receives a command and related IDs to retrieve MRS and AVMs
- *  
+ *
  */
 
-// Global variables
-var webhost = 'localhost';
-var webport = 3000;
-var socketport = 4000;
+// Global variables // TODO: Move to a constants file somewhere
+const webhost = 'localhost';
+const webport = 3000;
+// var webport = 8000;
+const socketport = 4000;
 
 // Instantiations
-var http = require('http');
-var server = http.createServer().listen(socketport);
-var io = require('socket.io').listen(server);
-var cookie_reader = require('cookie');
-var querystring = require('querystring');
+const http = require('http');
+const server = http.createServer().listen(socketport);
+const io = require('socket.io').listen(server);
+const cookie_reader = require('cookie');
+const querystring = require('querystring');
 
-var legal_commands = ['request','parse'];
+const legal_commands = new Set(['request','parse']);
 
 
 function djangoAction(message, socket, command) {
 
-    if (legal_commands.indexOf(command) < 0) {
+    if (!legal_commands.has(command)) {
 	console.log("igde#djangoAction(): Illegal command " + command + " passed");
 	return;
     }
@@ -53,7 +54,8 @@ function djangoAction(message, socket, command) {
 	res.setEncoding('utf8');
 	res.on('data', function(message) {
 	    // TODO: Improve error handling!
-	    socket.emit('message', message, function(data) {
+	    // socket.emit('message', message, function(data) {
+	    io.emit('message', message, function(data) {
 		console.log(data);
 	    });
         });
@@ -81,10 +83,10 @@ io.sockets.on('connection', function (socket) {
 
     // Client is sending message through socket.io
     /*** PARSE ***/
-    socket.on('parse', function(message) {djangoAction(message, socket, "parse")});
+    socket.on('parse', function(message) {restAndEmit(message, socket, "parse")});
 
 
     /*** REQUEST ***/
-    socket.on('request', function(message) {djangoAction(message, socket, "request")});
+    socket.on('request', function(message) {restAndEmit(message, socket, "request")});
 
 });

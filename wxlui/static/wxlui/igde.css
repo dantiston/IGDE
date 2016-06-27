@@ -3,9 +3,9 @@
  * @author: T.J. Trimble
  *
  * igde.css
- * 
+ *
  * HTML Styling for fundamental IGDE objects
- * 
+ *
  */
 
 input {
@@ -56,11 +56,16 @@ ul > div {
     margin: 0px;
     padding: 0px;
     margin-right: 10px;
-    
+
     -webkit-touch-callout: none;
     -webkit-user-select: none;
     -khtml-user-select: none;
     -moz-user-select: none;
     -ms-user-select: none;
     user-select: none;
+}
+
+.panel h1 {
+    font-size: 2.65rem;
+    text-align: center;
 }

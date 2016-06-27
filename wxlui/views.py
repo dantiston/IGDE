@@ -13,6 +13,7 @@ import logging
 from .models import Comments, User
 from .models import IgdeDerivation, IgdeXmrs, IgdeTypedFeatureStructure
 from .constants import Constants
+from .igde import GRAMMAR_PATH
 
 # PyDelphin imports
 from delphin.interfaces import lui
@@ -27,8 +28,7 @@ from django.contrib.auth.decorators import login_required
 
 
 # Initiate ACE
-# TODO: Move this to being attached to a user
-ace = InteractiveAce("~/delphin/erg.dat")
+ace = InteractiveAce(GRAMMAR_PATH)
 
 logger = logging.getLogger(__name__)
 
