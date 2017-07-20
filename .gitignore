@@ -21,6 +21,7 @@ db.sqlite3
 
 # Distribution / packaging
 node_modules/
+nodejs/node_modules/
 bin/
 build/
 develop-eggs/
@@ -34,6 +35,7 @@ var/
 *.egg-info/
 .installed.cfg
 *.egg
+package-lock.json
 
 # Installer logs
 pip-log.txt

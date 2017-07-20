@@ -6,6 +6,8 @@ The IGDE is built with [Django](https://www.djangoproject.com), combining Django
 Processing with ACE is handled through [PyDelphin](https://github.com/goodmami/pydelphin).
 
 # VERSION HISTORY
+v0.3: upgrade to Socket.io 2.0
+
 v0.2: core functionality, parsing to derivation trees and MRS tables. Moved model HTML code from PyDelphin to models.py
 
 v0.1: basic UI, parsing.
@@ -33,25 +35,29 @@ Coming... sometime!
 To set up IGDE, you'll need several different packages and types of packages. A comprehensive list (Much of this from [here](http://www.maxburstein.com/blog/realtime-django-using-nodejs-and-socketio/)):
 
 ```
+# Django on *nix
 #https://docs.djangoproject.com/en/dev/topics/install/
 sudo apt-get install python3-pip
 sudo pip3 install django
- 
-#https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager
 sudo apt-get install python-software-properties
+
+# NodeJS on *nix
+#https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager
 sudo add-apt-repository ppa:chris-lea/node.js
 sudo apt-get update
 sudo apt-get install nodejs
 
-sudo pip3 install django-zurb-foundation
+# Django on macOS
+brew install python3
+sudo pip3 install django
 
-# Download and install IGDE and pydelphin
-git clone https://github.com/dantiston/pydelphin.git
+# NodeJS on macOS
+brew install node
+
+# Download and install IGDE
 git clone https://github.com/dantiston/IGDE.git
-
-# Install pydelphin
-cd pydelphin
-sudo python setup.py install
+cd IGDE
+./install.sh
 ```
 
 The current version of the IGDE relies on a static ACE-compiled grammar image. I recommend to store this at `~/delphin/erg.dat`. You can compile your own grammar image with ACE or download a pre-compiled image. More info from the [ACE website](http://sweaglesw.org/linguistics/ace/).
