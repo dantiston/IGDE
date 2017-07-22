@@ -2,12 +2,8 @@
 *~
 \#*\#
 
-# Ignore collected static files
-IGDE/static/
-
-# Ignore django database migrations
-*/migrations/*
-db.sqlite3
+# Ignore secret key
+igde\.json
 
 #######
 # From https://github.com/github/gitignore/blob/master/Python.gitignore

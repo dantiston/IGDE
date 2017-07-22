@@ -16,7 +16,7 @@ Session(app)
 Foundation(app)
 
 SESSION_TYPE = 'redis'
-GRAMMAR = "/Users/admin/Downloads/erg.dat"
+GRAMMAR = "/Users/admin/Downloads/erg.dat" # TODO: Remove this
 
 
 @app.route('/')
@@ -24,6 +24,8 @@ def index():
     # Return the index page
     # TODO: Index page should be generic ajax page with grammar name
     # TODO: Maybe this session.get can load the upload button on key miss?
+    if constants.grammar not in session:
+        session[constants.grammar] = AceParser(GRAMMAR)
     return render_template('index.html', grammar=session.get(constants.grammar, ""))
 
 
@@ -68,8 +70,4 @@ def request(sort):
 
 
 if __name__ == '__main__':
-
-    #with AceParser(GRAMMAR, 'r') as grammar:
-    #    app.run()
-
     app.run()
