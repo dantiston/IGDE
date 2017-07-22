@@ -1,7 +1,8 @@
-from flask import Flask, request
+from flask import Flask, request, render_template, session
 import html
 
 from flask_session import Session
+from flask_zurb_foundation import Foundation
 
 from delphin.interfaces.ace import AceParser
 
@@ -12,20 +13,18 @@ from .constants import Constants as constants
 app = Flask(__name__)
 app.config.from_object(__name__)
 Session(app)
+Foundation(app)
 
 SESSION_TYPE = 'redis'
 GRAMMAR = "/Users/admin/Downloads/erg.dat"
-
-# TODO: Move these to session
-#grammar = AceParser(GRAMMAR)
-#response = None
 
 
 @app.route('/')
 def index():
     # Return the index page
-    # TODO: Index page should be generic socket.io page with grammar name
-    return "Hello world!"
+    # TODO: Index page should be generic ajax page with grammar name
+    # TODO: Maybe this session.get can load the upload button on key miss?
+    return render_template('index.html', grammar=session.get(constants.grammar, ""))
 
 
 @app.route('/parse', methods=['POST'])
