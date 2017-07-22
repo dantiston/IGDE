@@ -16,7 +16,7 @@ const webport = 3000;
 const socketport = 4000;
 
 // Instantiations
-const http = require('http');
+const http = require('http'); // TODO: Switch to Express
 const server = http.createServer().listen(socketport);
 const io = require('socket.io').listen(server);
 const cookie_reader = require('cookie');
