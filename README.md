@@ -16,14 +16,8 @@ v0.1: basic UI, parsing.
 To run a development instance of the IGDE, make sure to follow the directions to set up the IGDE below. Then, in two separate terminals, run:
 
 ```
-cd IGDE/nodejs
-nodejs igde.js
-```
-
-*NOTE: This no longer works
-```
-cd IGDE
-python manage.py runserver localhost:3000
+cd igde
+bash run.sh
 ```
 
 # DEPLOYING IGDE
@@ -31,32 +25,12 @@ Coming... sometime!
 
 # SETUP
 *NOTE: The IGDE is developed alongside [PyDelphin](https://github.com/goodmami/pydelphin), both of which are written in Python3. Make sure to use Python3 specific commands when appropriate.*
-To set up IGDE, you'll need several different packages and types of packages. A comprehensive list (Much of this from [here](http://www.maxburstein.com/blog/realtime-django-using-nodejs-and-socketio/)):
 
 ```
-# Django on *nix
-#https://docs.djangoproject.com/en/dev/topics/install/
-sudo apt-get install python3-pip
-sudo pip3 install django
-sudo apt-get install python-software-properties
-
-# NodeJS on *nix
-#https://github.com/joyent/node/wiki/Installing-Node.js-via-package-manager
-sudo add-apt-repository ppa:chris-lea/node.js
-sudo apt-get update
-sudo apt-get install nodejs
-
-# Django on macOS
-brew install python3
-sudo pip3 install django
-
-# NodeJS on macOS
-brew install node
-
 # Download and install IGDE
 git clone https://github.com/dantiston/IGDE.git
-cd IGDE
-./install.sh
+cd IGDE/igde
+bash install.sh
 ```
 
 The current version of the IGDE relies on a static ACE-compiled grammar image. I recommend to store this at `~/delphin/erg.dat`. You can compile your own grammar image with ACE or download a pre-compiled image. More info from the [ACE website](http://sweaglesw.org/linguistics/ace/).
