@@ -1,3 +1,5 @@
+import uuid
+
 # Flask
 from flask import Flask, request, render_template, session
 import html
@@ -15,6 +17,11 @@ from . import secret
 
 from .constants import Constants as constants
 
+from flask import Flask, session
+from flask_session import Session
+
+
+SESSION_TYPE = 'redis'
 
 # Initiate Flask
 app = Flask(__name__)
@@ -22,25 +29,38 @@ app.config.from_object(__name__)
 Foundation(app)
 
 # Initiate session
-SESSION_TYPE = 'redis'
 app.secret_key = secret.load()
 Session(app)
 
 GRAMMAR = "/Users/admin/Downloads/erg.dat" # TODO: Remove this
+
+# This probably needs more functionality, but a simple dict is fine for now
+instances = {}
 
 def load_grammar():
     # TODO: If grammar path not loaded, return error
     #if constants.grammar_path not in session:
     #    return "{\"error\":\"no grammar loaded\"}"
 
-    if constants.grammar not in session:
-        session[constants.grammar] = AceParser(GRAMMAR)
+    uuid = session['uuid']
+    if uuid not in instances:
+        instances[uuid] = AceParser(GRAMMAR)
+
+
+def gen_uuid():
+    if 'uuid' not in session:
+        session['uuid'] = uuid.uuid4()
+
+
+def init():
+    gen_uuid()
+    load_grammar()
 
 
 @app.route('/')
 def index():
     # Return the index page
-    load_grammar()
+    init()
     # TODO: Index page should be generic ajax page with grammar name
     # TODO: Maybe this session.get can load the upload button on key miss?
     return render_template('index.html', grammar=session.get(constants.grammar, ""))
@@ -61,8 +81,8 @@ def parse_GET(text):
 
 
 def parse(sent):
-    load_grammar()
-    response = session[constants.grammar].interact(sent)
+    init()
+    response = instances[session['uuid']].interact(sent)
     return str(response.result(0).tree())
 
 

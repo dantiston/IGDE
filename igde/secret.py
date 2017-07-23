@@ -3,17 +3,17 @@
 # Creating and loading local secret for session storage
 #########
 
+import sys
 import os
 import json
 
+# Dot required while running...
 # No dot when installing...
-from constants import Constants as constants
+from .constants import Constants as constants
 
 target = constants.igde_json
 
 def init():
-
-    import sys
 
     # Make the key
     key = str(os.urandom(24))
