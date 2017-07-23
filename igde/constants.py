@@ -22,12 +22,24 @@ class MetaConstants(type):
         return cls._response
 
     @property
+    def grammar_not_loaded_error(cls):
+        return cls._grammar_not_loaded_error
+
+    @property
+    def igde_json(cls):
+        return cls._igde_json
+
+    @property
     def mrs(cls):
         return cls._mrs
 
     @property
     def tree(cls):
         return cls._tree
+
+    @property
+    def secret_key(cls):
+        return cls._secret_key
 
     @property
     def delete_button(cls):
@@ -53,6 +65,16 @@ class Constants(metaclass=MetaConstants):
 
     _tree = "DERIV"
 
+    _secret_key = "secret_key"
+
+
+    # File names
+    _igde_json = "igde.json"
+
+    # Errors
+    __error = "{{\"error\":\"{}\"}}"
+
+    _grammar_not_loaded_error = __error.format("grammar not loaded")
 
     # HTML
     _delete_button = "<div type='button' class='deleteButton igdeButton secondary button'>X</div>"

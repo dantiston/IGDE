@@ -2,3 +2,4 @@ pydelphin~=0.6.2
 flask~=0.12.2
 flask_session~=0.3.1
 flask_zurb_foundation~=0.2.1
+redis~=2.10.5

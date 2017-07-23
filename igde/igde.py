@@ -1,31 +1,48 @@
+# Flask
 from flask import Flask, request, render_template, session
 import html
 
+# Flask extensions
 from flask_session import Session
 from flask_zurb_foundation import Foundation
 
+# Delphin
 from delphin.interfaces.ace import AceParser
+
+# App
+from . import secret
+#from . import models
 
 from .constants import Constants as constants
 
-#from . import models
 
+# Initiate Flask
 app = Flask(__name__)
 app.config.from_object(__name__)
-Session(app)
 Foundation(app)
 
+# Initiate session
 SESSION_TYPE = 'redis'
+app.secret_key = secret.load()
+Session(app)
+
 GRAMMAR = "/Users/admin/Downloads/erg.dat" # TODO: Remove this
+
+def load_grammar():
+    # TODO: If grammar path not loaded, return error
+    #if constants.grammar_path not in session:
+    #    return "{\"error\":\"no grammar loaded\"}"
+
+    if constants.grammar not in session:
+        session[constants.grammar] = AceParser(GRAMMAR)
 
 
 @app.route('/')
 def index():
     # Return the index page
+    load_grammar()
     # TODO: Index page should be generic ajax page with grammar name
     # TODO: Maybe this session.get can load the upload button on key miss?
-    if constants.grammar not in session:
-        session[constants.grammar] = AceParser(GRAMMAR)
     return render_template('index.html', grammar=session.get(constants.grammar, ""))
 
 
@@ -44,21 +61,8 @@ def parse_GET(text):
 
 
 def parse(sent):
-    #if grammar is not None:
-    #    result = grammar.interact(sent)
-    #    return result[0]["MRS"]
-    #return "Grammar not loaded"
-
-    #with AceParser(GRAMMAR) as grammar:
-    #    result = grammar.interact(sent)
-    #    return result["RESULTS"][0][constants.tree]
-    #return "No parse found"
-
-    #results = grammar.interact(sent)
-    #return results.results(0).tree()
-    #return str(results)
-
-    response = grammar.interact(sent)
+    load_grammar()
+    response = session[constants.grammar].interact(sent)
     return str(response.result(0).tree())
 
 
