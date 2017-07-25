@@ -5,10 +5,6 @@ Integrated Grammar Development Environment
 models.py
 """
 
-# Django imports
-from django.db import models
-from django.contrib.auth.models import User
-
 # PyDelphin imports
 from delphin.derivation import Derivation
 from delphin.mrs import Xmrs
@@ -16,17 +12,10 @@ from delphin.mrs.components import HandleConstraint, ElementaryPredication, Argu
 from delphin.tfs import TypedFeatureStructure
 
 
-class Comments(models.Model):
-    user = models.ForeignKey(User)
-    text = models.CharField(max_length=255)
-    parse = models.CharField(max_length=8192, default="")
-    mrs = models.CharField(max_length=8192, default="")
-
-
 class IgdeDerivation(Derivation):
     """
     Loads a PyDelphin.delphin.derivation.Derivation object and adds
-    additional output methods, specifically output_HTML()
+    additional output methods, specifically html()
     """
 
     def __init__(self, other):
@@ -42,7 +31,7 @@ class IgdeDerivation(Derivation):
         self.rule_name = other.rule_name
         self.tree_ID = other.tree_ID
 
-    def output_HTML(self, html_class="derivationTree", top=True, title_text=True):
+    def html(self, html_class="derivationTree", top=True, title_text=True):
         """
         Returns HTML representation of tree in the following format:
 
@@ -88,6 +77,7 @@ class IgdeDerivation(Derivation):
             tree_ID = " id=\"{}\"".format(self.tree_ID) if self.tree_ID else ""
             result = top_formatter.format(tree_ID=tree_ID, values=result, html_class=html_class)
         return result
+
 
     @staticmethod
     def addMrsButton(string, html_classes="mrsButton igdeButton secondary button"):

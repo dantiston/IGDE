@@ -18,6 +18,10 @@ class MetaConstants(type):
         return cls._grammar
 
     @property
+    def grammar_path(cls):
+        return cls._grammar_path
+
+    @property
     def response(cls):
         return cls._response
 
@@ -58,6 +62,8 @@ class Constants(metaclass=MetaConstants):
 
     # Keys
     _grammar = "grammar"
+
+    _grammar_path = "grammar_path"
 
     _response = "response"
 

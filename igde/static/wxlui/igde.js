@@ -4,7 +4,8 @@
  *
  * igde.js
  *
- * jQuery for interacting with socket.io
+ * * Basic functionality for interacting with Python
+ * * Page level functionality
  * Provides the following core functions:
  *
  *     * requestParse: requests parse of the value in #comment
@@ -15,21 +16,13 @@
  *
  */
 
-// Constants // TODO: Move to config
-const sockethost = 'localhost';
-const socketport = 4000;
-
-
 // Tooltip
 $(document).tooltip({
     items:".derivationTree p,.mrsRelationProperties",
     track: true,
     content: function() {
         var element = $(this);
-        if (element.is("p")) {
-            return element.attr("title");
-        }
-        else if (element.is(".mrsRelationProperties")) {
+        if (element.is("p") || element.is(".mrsRelationProperties")) {
             return element.attr("title");
         }
     }
@@ -39,33 +32,23 @@ $(document).tooltip({
 // Page loader
 $(document).ready(function(){
 
-    // Connect to server
-    var socket = io.connect(sockethost, {port: socketport});
-    // var socket = io();
-
-    // Connection code
-    socket.on('connect', function(){
-        console.log("Successfully connected to server.");
-    });
-
     // Get element
     var entry_element = $('#comment');
     var entry_button = $('button#analyze');
 
     /*** PARSING ***/
     function requestParse(entry_el) {
-	/**
-	 * This method interacts with the socket.
-         **/
-	var msg = entry_el.prop('value');
+	const msg = entry_el.prop('value');
 	if (msg) {
 	    console.log("Requesting parse for \"" + msg + "\"");
-	    socket.emit('parse', msg, function(data) {
-		    console.log(data);
-		});
-	    //Clear input value
-	    entry_el.prop('value', '');
+	    $.get('/parse/html/' + msg, function(data) {
+	        $("#parses").prepend(data);
+		console.log(data);
+	    });
+	    entry_el.prop('value', ''); // Clear input value
+	    return true;
 	}
+	return false;
     }
 
 
@@ -80,16 +63,14 @@ $(document).ready(function(){
 
     /*** REQUESTING MRS/AVM ***/
     function requestTfs(tree_id, edge_id, what) {
-	/**
-	 * This method interacts with the socket.
-         **/
 	console.log(tree_id + "; " + edge_id)
 	if (tree_id && edge_id && what) {
 	    var msg = "request " + tree_id + " " + edge_id + " " + what;
 	    console.log("Sending \"" + msg + "\"");
-	    socket.emit('request', msg, function(data) {
-		    console.log(data);
-		});
+	    $.post('/request/', msg, function(data) {
+		$("#parses").prepend(data);
+		console.log(data);
+	    });
 	}
     }
 
@@ -120,21 +101,6 @@ $(document).ready(function(){
     // On menu button click, request grammar entity
     // TODO: This
 
-
-    /*** RESULTS ***/
-    // On message from server, add message to list
-    socket.on('message', function(message) {
-	console.log("Message received from server.")
-
-        // Escape HTML characters
-	// TODO: Do better HTML escaping
-        var data = message.replace(/&/g,"&amp;")
-
-        // Append message to the top of the list
-        $('#parses').prepend(data);
-        window.scrollTo(0, 0);
-        entry_element.focus();
-    });
 
     /*** Item management ***/
     // Delete button

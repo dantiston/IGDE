@@ -32,19 +32,17 @@ Foundation(app)
 app.secret_key = secret.load()
 Session(app)
 
-GRAMMAR = "/Users/admin/Downloads/erg.dat" # TODO: Remove this
-
 # This probably needs more functionality, but a simple dict is fine for now
 instances = {}
 
 def load_grammar():
-    # TODO: If grammar path not loaded, return error
-    #if constants.grammar_path not in session:
-    #    return "{\"error\":\"no grammar loaded\"}"
+    if constants.grammar_path not in session:
+        return "{\"error\":\"no grammar loaded\"}"
 
     uuid = session['uuid']
+    grammar = session[constants.grammar_path]
     if uuid not in instances:
-        instances[uuid] = AceParser(GRAMMAR)
+        instances[(uuid, grammar)] = AceParser(grammar)
 
 
 def gen_uuid():
@@ -53,6 +51,8 @@ def gen_uuid():
 
 
 def init():
+    session[constants.grammar_path] = "/Users/admin/Downloads/erg.dat" # TODO: Change this
+    session[constants.grammar] = "erg-1214.dat"
     gen_uuid()
     load_grammar()
 
@@ -66,24 +66,27 @@ def index():
     return render_template('index.html', grammar=session.get(constants.grammar, ""))
 
 
-@app.route('/parse', methods=['POST'])
-def parse_POST(text):
+@app.route('/parse/<format>', methods=['POST'])
+def parse_POST(text, format):
     # parse the given text
     text = request.data
-    return parse(text)
+    return parse(text, format)
 
 
-@app.route('/parse/<text>', methods=['GET'])
-def parse_GET(text):
+@app.route('/parse/<format>/<text>', methods=['GET'])
+def parse_GET(text, format):
     # parse the given text
     text = html.unescape(text)
-    return parse(text)
+    return parse(text, format)
 
+formats = {'text': (lambda x: str(x)), 'html': (lambda x: str(x)) }
 
-def parse(sent):
+def parse(sent, format):
     init()
-    response = instances[session['uuid']].interact(sent)
-    return str(response.result(0).tree())
+    if format not in formats:
+        return '\{"error": "illegal format: \"{}\""\}'.format(format)
+    response = instances[(session['uuid'], session[constants.grammar_path])].interact(sent)
+    return formats[format](response.result(0).tree())
 
 
 @app.route('/request/<sort>')
