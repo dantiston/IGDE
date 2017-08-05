@@ -13,13 +13,17 @@ class MetaConstants(type):
     Meta-class to make read-only Constants
     """
 
-    @property
-    def grammar(cls):
-        return cls._grammar
+    #@property
+    #def grammar(cls):
+    #    return cls._grammar
 
     @property
     def grammar_path(cls):
         return cls._grammar_path
+
+    @property
+    def uuid(cls):
+        return cls._uuid
 
     @property
     def response(cls):
@@ -61,9 +65,11 @@ class Constants(metaclass=MetaConstants):
     """
 
     # Keys
-    _grammar = "grammar"
+    #_grammar = "grammar"
 
-    _grammar_path = "grammar_path"
+    _grammar_path = "GRAMMAR"
+
+    _uuid = "uuid"
 
     _response = "response"
 

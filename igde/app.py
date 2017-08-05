@@ -1,24 +1,23 @@
 import uuid
+import html
+import os
 
 # Flask
 from flask import Flask, request, render_template, session
-import html
 
 # Flask extensions
 from flask_session import Session
 from flask_zurb_foundation import Foundation
 
-# Delphin
-from delphin.interfaces.ace import AceParser
-
 # App
 from . import secret
-#from . import models
+from . import wxlui
 
+from .ace import InteractiveAce
 from .constants import Constants as constants
 
 from flask import Flask, session
-from flask_session import Session
+from flask_session import Session # TODO: Remove this
 
 
 SESSION_TYPE = 'redis'
@@ -36,23 +35,20 @@ Session(app)
 instances = {}
 
 def load_grammar():
-    if constants.grammar_path not in session:
-        return "{\"error\":\"no grammar loaded\"}"
-
-    uuid = session['uuid']
-    grammar = session[constants.grammar_path]
-    if uuid not in instances:
-        instances[(uuid, grammar)] = AceParser(grammar)
+    uuid = session[constants.uuid]
+    grammar_path = session[constants.grammar_path]
+    if (uuid, grammar_path) not in instances:
+        instances[(uuid, grammar_path)] = InteractiveAce(grammar_path)
 
 
 def gen_uuid():
-    if 'uuid' not in session:
-        session['uuid'] = uuid.uuid4()
+    if constants.uuid not in session:
+        session[constants.uuid] = uuid.uuid4()
+        print("Created UUID: {}".format(session[constants.uuid]))
 
 
 def init():
-    session[constants.grammar_path] = "/Users/admin/Downloads/erg.dat" # TODO: Change this
-    session[constants.grammar] = "erg-1214.dat"
+    session[constants.grammar_path] = os.getenv(constants.grammar_path)
     gen_uuid()
     load_grammar()
 
@@ -63,7 +59,7 @@ def index():
     init()
     # TODO: Index page should be generic ajax page with grammar name
     # TODO: Maybe this session.get can load the upload button on key miss?
-    return render_template('index.html', grammar=session.get(constants.grammar, ""))
+    return render_template('index.html', grammar=session.get(constants.grammar_path, ""))
 
 
 @app.route('/parse/<format>', methods=['POST'])
@@ -73,20 +69,23 @@ def parse_POST(text, format):
     return parse(text, format)
 
 
-@app.route('/parse/<format>/<text>', methods=['GET'])
+@app.route('/parse/<format>/<text>', methods=['POST', 'GET'])
 def parse_GET(text, format):
     # parse the given text
     text = html.unescape(text)
     return parse(text, format)
 
-formats = {'text': (lambda x: str(x)), 'html': (lambda x: str(x)) }
+
+formats = {'text': (lambda x: str(x)), 'html': wxlui.fromTree }
 
 def parse(sent, format):
     init()
     if format not in formats:
         return '\{"error": "illegal format: \"{}\""\}'.format(format)
-    response = instances[(session['uuid'], session[constants.grammar_path])].interact(sent)
-    return formats[format](response.result(0).tree())
+    response = instances[(session[constants.uuid], session[constants.grammar_path])].interact(sent)
+    print("Respone: {}".format(response))
+    return "\n".join(formats[format](result[constants.tree]) for result in response.results())
+    #return "\n".join(map(str, response.results()))
 
 
 @app.route('/request/<sort>')

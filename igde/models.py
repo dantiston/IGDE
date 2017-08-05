@@ -8,7 +8,7 @@ models.py
 # PyDelphin imports
 from delphin.derivation import Derivation
 from delphin.mrs import Xmrs
-from delphin.mrs.components import HandleConstraint, ElementaryPredication, Argument
+from delphin.mrs.components import HandleConstraint, ElementaryPredication
 from delphin.tfs import TypedFeatureStructure
 
 
@@ -287,10 +287,9 @@ class IgdeElementaryPredication(ElementaryPredication):
         return formatter.format(**values)
 
 
-class IgdeArgument(Argument):
+class IgdeArgument(object):
     """
-    Loads a PyDelphin.delphin.mrs.components.Argument object
-    and adds additional output methods, specifically output_HTML()
+    Represents an MRS argument
     """
 
     format = """<p id="{value}" class="mrsVar mrsVar_{value}">{value}</p>"""
