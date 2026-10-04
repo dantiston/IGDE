@@ -1,12 +1,14 @@
-"""Owns every ACE process IGDE starts.
+"""Owns every processor process IGDE starts.
 
-* one PyDelphin ACEParser / ACEGenerator per grammar, kept alive between
-  requests (loading even the ERG is fast, but not free);
+* one parser and one generator (PyDelphin processors) per grammar, kept
+  alive between requests (loading even the ERG is fast, but not free);
 * one LUI session per grammar for TFS browsing;
 * background grammar compilation jobs.
 
-Processes are restarted transparently when ACE's executable, the grammar
-image or the processing options change, or when a process dies.
+Each grammar is run by its processor (``Grammar.processor``, or the
+default one), through that processor's backend.  Processes are restarted
+transparently when the executable, the grammar image or the processing
+options change, or when a process dies.
 """
 
 from __future__ import annotations
@@ -20,22 +22,17 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from delphin import ace as delphin_ace
 from django.db import close_old_connections
 from django.utils import timezone
 
-from . import environment
-from .lui_session import LuiError, LuiSession
+from .base import COMPILE, ProcessorStatus, ProcessorUnavailable
+from .lui_session import LuiError
 
 log = logging.getLogger(__name__)
 
-# Restart LUI sessions periodically: in LUI mode ACE keeps every parse
-# chart around so that it can be browsed later.
+# Restart LUI sessions periodically: in LUI mode a processor keeps every
+# parse chart around so that it can be browsed later.
 LUI_MAX_PARSES = 200
-
-
-class AceUnavailable(RuntimeError):
-    pass
 
 
 @dataclass
@@ -43,6 +40,7 @@ class Managed:
     kind: str  # "parser" | "generator" | "lui"
     grammar_id: int
     grammar_name: str
+    processor_name: str
     signature: tuple
     obj: object
     stderr: object = None
@@ -88,6 +86,7 @@ class Managed:
             "kind": self.kind,
             "grammarId": self.grammar_id,
             "grammarName": self.grammar_name,
+            "processorName": self.processor_name,
             "pid": self.pid,
             "alive": self.alive(),
             "started": self.started,
@@ -97,64 +96,86 @@ class Managed:
         }
 
 
-class AceManager:
+class ProcessorManager:
     def __init__(self):
         self._lock = threading.RLock()
         self._procs: dict[tuple[str, int], Managed] = {}
-        self._status_cache: tuple | None = None
+        self._status_cache: dict[int, tuple] = {}
         self._compiles: dict[int, threading.Thread] = {}
 
     # -- configuration -----------------------------------------------------
     def config(self):
-        from core.models import AceConfig
+        from core.models import AppSettings
 
-        return AceConfig.load()
+        return AppSettings.load()
 
-    def status(self, cfg=None):
-        cfg = cfg or self.config()
-        key = (cfg.ace_root, os.environ.get("ACE_ROOT"), os.environ.get("PATH"))
-        cached = self._status_cache
+    def processor_for(self, grammar):
+        p = grammar.effective_processor()
+        if p is None:
+            raise ProcessorUnavailable("No processor is configured. Add one in Settings.")
+        return p
+
+    def status(self, processor) -> ProcessorStatus:
+        try:
+            backend = processor.get_backend()
+        except KeyError as e:
+            return ProcessorStatus(False, None, processor.location, None, None, str(e.args[0]))
+        env = tuple(os.environ.get(v) for v in backend.env_vars)
+        key = (processor.backend, processor.location, env, os.environ.get("PATH"))
+        cached = self._status_cache.get(processor.id)
         # Only successful lookups are cached, so that e.g. a fresh
         # `brew install` is picked up without touching the settings.
         if cached and cached[0] == key:
             exe = cached[1].executable
             if Path(exe).exists() and Path(exe).stat().st_mtime == cached[2]:
                 return cached[1]
-        st = environment.check(cfg.ace_root)
-        self._status_cache = (key, st, Path(st.executable).stat().st_mtime) if st.ok else None
+        st = backend.check(processor.location)
+        if st.ok:
+            self._status_cache[processor.id] = (key, st, Path(st.executable).stat().st_mtime)
+        else:
+            self._status_cache.pop(processor.id, None)
         return st
 
-    def executable(self, cfg=None) -> str:
-        st = self.status(cfg)
+    def executable(self, processor) -> str:
+        st = self.status(processor)
         if not st.ok:
-            raise AceUnavailable(st.error)
+            raise ProcessorUnavailable(f"{processor.name}: {st.error}")
         return st.executable
 
-    @staticmethod
-    def _cmdargs(cfg, n=None):
-        return [
-            "-n", str(n or cfg.max_results),
-            "--timeout", str(cfg.timeout_seconds),
-            "--max-chart-megabytes", str(cfg.max_chart_megabytes),
-            "--max-unpack-megabytes", str(cfg.max_unpack_megabytes),
-        ]
+    def require(self, grammar, capability):
+        """The grammar's processor, if it can do *capability*."""
+        p = self.processor_for(grammar)
+        try:
+            backend = p.get_backend()
+        except KeyError as e:
+            raise ProcessorUnavailable(str(e.args[0])) from e
+        if capability not in backend.capabilities:
+            raise ProcessorUnavailable(f"{p.name} ({backend.label}) can't {_CAPABILITY_VERB.get(capability, capability)}.")
+        return p, backend
+
+    def resolve(self, grammar, capability, n=None):
+        """Everything needed to run *grammar*'s processor: (processor,
+        backend, executable, image, args)."""
+        cfg = self.config()
+        p, backend = self.require(grammar, capability)
+        exe = self.executable(p)
+        image = Path(grammar.image_path)
+        if not image.is_file():
+            raise ProcessorUnavailable(
+                f"Grammar image {image} does not exist"
+                + (" - compile the grammar first." if grammar.is_source else ".")
+            )
+        args = backend.processing_args(p.options, n or cfg.max_results, cfg.timeout_seconds)
+        return p, backend, exe, image, args
 
     def settings_changed(self):
-        self._status_cache = None
+        self._status_cache.clear()
         self.stop_all()
 
     # -- process pool ------------------------------------------------------
     def _get(self, kind, grammar, n=None) -> Managed:
-        cfg = self.config()
-        exe = self.executable(cfg)
-        image = Path(grammar.image_path)
-        if not image.is_file():
-            raise AceUnavailable(
-                f"Grammar image {image} does not exist"
-                + (" - compile the grammar first." if grammar.is_source else ".")
-            )
-        args = self._cmdargs(cfg, n)
-        sig = (exe, str(image), image.stat().st_mtime, tuple(args))
+        p, backend, exe, image, args = self.resolve(grammar, _KIND_CAPABILITY[kind], n)
+        sig = (p.id, backend.key, exe, str(image), image.stat().st_mtime, tuple(args))
         key = (kind, grammar.id)
         with self._lock:
             m = self._procs.get(key)
@@ -164,27 +185,31 @@ class AceManager:
             if m:
                 self._procs.pop(key)
                 m.close()
-            m = self._start(kind, grammar, exe, image, args, sig)
+            m = self._start(kind, grammar, p, backend, exe, image, args, sig)
             self._procs[key] = m
             return m
 
-    def _start(self, kind, grammar, exe, image, args, sig) -> Managed:
-        env = environment.process_env()
-        log.info("starting ACE %s for %s", kind, grammar.name)
+    def _start(self, kind, grammar, processor, backend, exe, image, args, sig) -> Managed:
+        env = backend.env()
+        log.info("starting %s %s for %s", processor.name, kind, grammar.name)
         if kind == "lui":
+            cwd = str(grammar.root_dir) if grammar.root_dir.is_dir() else None
             try:
-                obj = LuiSession(exe, image, args, env=env, cwd=str(grammar.root_dir) if grammar.root_dir.is_dir() else None)
+                obj = backend.lui_session(exe, image, args, env, cwd)
             except LuiError as e:
-                raise AceUnavailable(f"Could not start ACE: {e}") from e
-            return Managed(kind, grammar.id, grammar.name, sig, obj)
-        cls = delphin_ace.ACEParser if kind == "parser" else delphin_ace.ACEGenerator
+                raise ProcessorUnavailable(f"Could not start {processor.name}: {e}") from e
+            return Managed(kind, grammar.id, grammar.name, processor.name, sig, obj)
+        factory = backend.parser if kind == "parser" else backend.generator
         stderr = tempfile.TemporaryFile()
         try:
-            obj = cls(str(image), cmdargs=list(args), executable=exe, env=env, stderr=stderr)
+            obj = factory(exe, image, args, env, stderr)
+        except ProcessorUnavailable:
+            stderr.close()
+            raise
         except Exception as e:
             stderr.close()
-            raise AceUnavailable(f"Could not start ACE: {e}") from e
-        return Managed(kind, grammar.id, grammar.name, sig, obj, stderr=stderr)
+            raise ProcessorUnavailable(f"Could not start {processor.name}: {e}") from e
+        return Managed(kind, grammar.id, grammar.name, processor.name, sig, obj, stderr=stderr)
 
     def _interact(self, kind, grammar, datum, n=None):
         m = self._get(kind, grammar, n)
@@ -198,7 +223,7 @@ class AceManager:
                     if self._procs.get((kind, grammar.id)) is m:
                         self._procs.pop((kind, grammar.id))
                 m.close()
-                raise AceUnavailable(f"ACE exited while processing the input.\n{tail}".strip())
+                raise ProcessorUnavailable(f"{m.processor_name} exited while processing the input.\n{tail}".strip())
             return response
 
     def parse(self, grammar, sentence, n=None):
@@ -209,6 +234,13 @@ class AceManager:
 
     def lui(self, grammar) -> Managed:
         return self._get("lui", grammar)
+
+    def batch_parser(self, grammar, n=None):
+        """A factory for a fresh parser for *grammar* (e.g. for a test suite
+        run), which takes the file to write the processor's stderr to."""
+        p, backend, exe, image, args = self.resolve(grammar, "parse", n)
+        env = backend.env()
+        return lambda stderr: backend.parser(exe, image, args, env, stderr)
 
     def lui_existing(self, grammar_id) -> Managed | None:
         with self._lock:
@@ -250,21 +282,22 @@ class AceManager:
         from core.models import Grammar
 
         if not grammar.is_source:
-            raise AceUnavailable("Only grammars with a config.tdl can be compiled.")
+            raise ProcessorUnavailable("Only grammars added from their configuration file can be compiled.")
         if self.compiling(grammar.id):
-            raise AceUnavailable("This grammar is already being compiled.")
-        exe = self.executable()
+            raise ProcessorUnavailable("This grammar is already being compiled.")
+        p, backend = self.require(grammar, COMPILE)
+        exe = self.executable(p)
         cfg_path = Path(grammar.config_path)
         if not cfg_path.is_file():
-            raise AceUnavailable(f"Config file {cfg_path} does not exist.")
+            raise ProcessorUnavailable(f"Config file {cfg_path} does not exist.")
         grammar.compile_status = Grammar.COMPILE_RUNNING
         grammar.compile_log = ""
         grammar.save(update_fields=["compile_status", "compile_log"])
-        t = threading.Thread(target=self._compile_job, args=(grammar.id, exe), daemon=True)
+        t = threading.Thread(target=self._compile_job, args=(grammar.id, backend, exe), daemon=True)
         self._compiles[grammar.id] = t
         t.start()
 
-    def _compile_job(self, grammar_id, exe):
+    def _compile_job(self, grammar_id, backend, exe):
         from core.models import Grammar
 
         close_old_connections()
@@ -275,12 +308,12 @@ class AceManager:
         status, logtext = Grammar.COMPILE_FAILED, ""
         try:
             out.parent.mkdir(parents=True, exist_ok=True)
-            cmd = [exe, "-g", str(cfg_path), "-G", str(tmp)]
+            cmd = backend.compile_command(exe, cfg_path, tmp)
             started = time.time()
             proc = subprocess.run(
                 cmd,
                 cwd=str(cfg_path.parent),
-                env=environment.process_env(),
+                env=backend.env(),
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
                 timeout=3600,
@@ -313,4 +346,7 @@ def _strip_ansi(text):
     return re.sub(r"\x1b\[[0-9;]*m", "", text)
 
 
-manager = AceManager()
+_KIND_CAPABILITY = {"parser": "parse", "generator": "generate", "lui": "tfs"}
+_CAPABILITY_VERB = {"parse": "parse", "generate": "generate", "tfs": "browse feature structures (LUI)", "compile": "compile grammars"}
+
+manager = ProcessorManager()

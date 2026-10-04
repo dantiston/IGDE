@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from core.ace.lui import LuiParseError, parse_avm, parse_messages
+from core.processors.lui import LuiParseError, parse_avm, parse_messages
 
 # Recorded from ``ace -l --lui-fd`` (with the tiniest grammar and the ERG);
 # \f is the LUI message terminator.

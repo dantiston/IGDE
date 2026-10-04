@@ -1,7 +1,7 @@
-"""Parser for the LUI protocol spoken by ``ace -l``.
+"""Parser for the LUI protocol (as spoken by e.g. ``ace -l``).
 
-ACE's LUI mode (normally used with the ``yzlui`` viewer) writes messages
-such as::
+A processor in LUI mode (normally used with the ``yzlui`` viewer) writes
+messages such as::
 
     group 1 "n1 iv"
     tree 1 #T[1 "S" nil 8 subj-head #T[2 "N" "n1" 3 n1] ...] "n1 iv"

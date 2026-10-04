@@ -11,10 +11,10 @@ from delphin import itsdb
 from django.test import SimpleTestCase, TestCase, TransactionTestCase, override_settings
 
 from core import profiles
-from core.ace.manager import manager
 from core.models import Grammar, Profile
+from core.processors.manager import manager
 
-from .test_ace_integration import ACE_ROOT, FIXTURES
+from .test_ace_integration import ACE_ROOT, FIXTURES, use_ace
 
 
 class ItemLinesTests(SimpleTestCase):
@@ -96,7 +96,7 @@ class ProfileRunTests(TransactionTestCase):
         self.addCleanup(manager.settings_changed)
         self.grammar_dir = self.tmp / "tiniest"
         shutil.copytree(FIXTURES / "tiniest", self.grammar_dir)
-        self.post("/api/settings", {"aceRoot": ACE_ROOT}, method="put")
+        use_ace(self)
         self.gid = self.post("/api/grammars", {"configPath": str(self.grammar_dir), "compile": True})["grammar"]["id"]
         self.wait_compiled()
 

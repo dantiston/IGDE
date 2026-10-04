@@ -264,6 +264,14 @@ function GrammarDetails({ g, onOpen }: { g: Grammar; onOpen: (path: string) => v
         <dd>
           <code>{g.rootDir}</code>
         </dd>
+        <dt>Processor</dt>
+        <dd>
+          <ProcessorSelect
+            value={g.processor}
+            disabled={act.busy}
+            onChange={(processor) => void act.run(() => api.updateGrammar(g.id, { processor }))}
+          />
+        </dd>
         <dt>Image</dt>
         <dd>
           <code>{g.imagePath}</code>{' '}
@@ -320,18 +328,53 @@ function GrammarDetails({ g, onOpen }: { g: Grammar; onOpen: (path: string) => v
   )
 }
 
+/** Which processor runs a grammar: the default one (null) or a given one. */
+function ProcessorSelect({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: number | null
+  onChange: (id: number | null) => void
+  disabled?: boolean
+}) {
+  const { status } = useApp()
+  const processors = status?.processors ?? []
+  const def = processors.find((p) => p.isDefault)
+  return (
+    <select
+      aria-label="Processor"
+      value={value ?? ''}
+      disabled={disabled}
+      onChange={(e) => onChange(e.target.value ? Number(e.target.value) : null)}
+    >
+      <option value="">Default{def ? ` (${def.name})` : ''}</option>
+      {processors.map((p) => (
+        <option key={p.id} value={p.id}>
+          {p.name}
+          {p.status.ok ? '' : ' (not available)'}
+        </option>
+      ))}
+    </select>
+  )
+}
+
 /* ---- adding a grammar ---- */
 
 function AddGrammar({ onClose, onAdded }: { onClose: () => void; onAdded: (g: Grammar) => void }) {
-  const { refresh, notify } = useApp()
+  const { status, refresh, notify } = useApp()
   const [compileNow, setCompileNow] = useState(true)
   const [manual, setManual] = useState('')
+  const [processor, setProcessor] = useState<number | null>(null)
+  const backends = status?.backends ?? []
+  const configs = backends.map((b) => b.configLabel).join(' or ')
+  const images = [...new Set(backends.flatMap((b) => b.imageSuffixes))].join(', ')
   const add = useAction(async (path: string) => {
-    const info = await api.detectGrammar(path)
+    const info = await api.detectGrammar(path, processor)
     const r = await api.addGrammar(
       info.kind === 'source'
-        ? { configPath: info.configPath, name: info.name, compile: compileNow }
-        : { imagePath: info.imagePath, name: info.name },
+        ? { configPath: info.configPath, name: info.name, compile: compileNow, processor }
+        : { imagePath: info.imagePath, name: info.name, processor },
     )
     if (r.compileError) notify(r.compileError, 'error')
     else notify(`Added ${r.grammar.name}${info.kind === 'source' && compileNow ? '; compiling…' : ''}`, 'success')
@@ -342,8 +385,8 @@ function AddGrammar({ onClose, onAdded }: { onClose: () => void; onAdded: (g: Gr
   return (
     <Modal title="Add a grammar" onClose={onClose}>
       <p className="muted">
-        A grammar's ACE <code>config.tdl</code> (usually <code>&lt;grammar&gt;/ace/config.tdl</code>; IGDE compiles it with ACE), its folder,
-        or an already compiled grammar image (<code>.dat</code>).
+        A grammar's configuration file ({configs}; IGDE compiles it with its processor), its folder, or an already
+        compiled grammar image ({images}).
       </p>
       <form
         className="row"
@@ -356,7 +399,7 @@ function AddGrammar({ onClose, onAdded }: { onClose: () => void; onAdded: (g: Gr
           className="grow"
           value={manual}
           onChange={(e) => setManual(e.target.value)}
-          placeholder="/path/to/grammar/ace/config.tdl, a grammar folder, or a .dat image"
+          placeholder="A grammar configuration file, a grammar folder, or a grammar image"
           aria-label="Grammar path"
           spellCheck={false}
         />
@@ -364,9 +407,17 @@ function AddGrammar({ onClose, onAdded }: { onClose: () => void; onAdded: (g: Gr
           Add
         </button>
       </form>
-      <label className="row">
-        <input type="checkbox" checked={compileNow} onChange={(e) => setCompileNow(e.target.checked)} /> Compile source grammars right away
-      </label>
+      <div className="row wrap">
+        <label className="row">
+          <input type="checkbox" checked={compileNow} onChange={(e) => setCompileNow(e.target.checked)} /> Compile
+          source grammars right away
+        </label>
+        {(status?.processors.length ?? 0) > 1 && (
+          <label className="row">
+            Processor <ProcessorSelect value={processor} onChange={setProcessor} />
+          </label>
+        )}
+      </div>
       {add.error && <div className="error">{add.error}</div>}
       <p className="muted">…or browse to it:</p>
       <FileBrowser

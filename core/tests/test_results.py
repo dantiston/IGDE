@@ -1,6 +1,6 @@
 from django.test import SimpleTestCase
 
-from core.ace.results import entity_signature, format_simplemrs, parse_labelled_tree, raw_predicates, semantics
+from core.processors.results import entity_signature, format_simplemrs, parse_labelled_tree, raw_predicates, semantics
 from delphin.codecs import simplemrs
 
 TINIEST_MRS = (

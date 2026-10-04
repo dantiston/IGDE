@@ -5,8 +5,10 @@ from core import views
 urlpatterns = [
     path("api/status", views.status),
     path("api/settings", views.settings_view),
-    path("api/settings/test-ace", views.test_ace),
-    path("api/settings/detect-ace", views.detect_ace),
+    path("api/processors", views.processor_list),
+    path("api/processors/check", views.processor_check),
+    path("api/processors/detect", views.processor_detect),
+    path("api/processors/<int:pid>", views.processor_detail),
     path("api/fs/roots", views.fs_roots),
     path("api/fs/list", views.fs_list),
     path("api/fs/file", views.fs_file),

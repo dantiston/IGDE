@@ -13,13 +13,12 @@ import threading
 import time
 from pathlib import Path
 
-from delphin import ace as delphin_ace
 from delphin import commands, itsdb, mrs as mrs_mod, tsdb
 from delphin.codecs import simplemrs
 from django.db import close_old_connections
 
-from .ace import environment, results
-from .ace.manager import AceUnavailable, manager
+from .processors import results
+from .processors.manager import manager
 
 log = logging.getLogger(__name__)
 
@@ -383,13 +382,10 @@ def _slug(s):
 def start_run(suite, grammar, n=None):
     """Copy *suite*'s items into a new profile and parse them with *grammar*
     in the background.  Returns the new (run) Profile."""
-    from .models import AceConfig, Profile
+    from .models import AppSettings, Profile
 
-    cfg = AceConfig.load()
-    exe = manager.executable(cfg)
-    image = Path(grammar.image_path)
-    if not image.is_file():
-        raise AceUnavailable(f"Grammar image {image} does not exist" + (" - compile the grammar first." if grammar.is_source else "."))
+    cfg = AppSettings.load()
+    make_parser = manager.batch_parser(grammar, n)
     source = Path(suite.path)
     if not is_profile(source):
         raise ProfileError(f"{source} is not an [incr tsdb()] profile.", 404)
@@ -417,13 +413,13 @@ def start_run(suite, grammar, n=None):
         run_status=Profile.RUN_RUNNING,
     )
     j = RunJob(run.id, total)
-    j.thread = threading.Thread(target=_run_job, args=(j, str(dest), str(image), exe, manager._cmdargs(cfg, n)), daemon=True)
+    j.thread = threading.Thread(target=_run_job, args=(j, str(dest), make_parser), daemon=True)
     _jobs[run.id] = j
     j.thread.start()
     return run
 
 
-def _run_job(j: RunJob, dest, image, exe, cmdargs):
+def _run_job(j: RunJob, dest, make_parser):
     from .models import Profile
 
     close_old_connections()
@@ -438,7 +434,7 @@ def _run_job(j: RunJob, dest, image, exe, cmdargs):
                 if j.cancel.is_set():
                     raise Cancelled()
 
-            with delphin_ace.ACEParser(image, executable=exe, cmdargs=list(cmdargs), env=environment.process_env(), stderr=stderr) as cpu:
+            with make_parser(stderr) as cpu:
                 # small buffer: results are written as we go, so a cancelled
                 # run keeps what it has done
                 ts.process(cpu, callback=progress, buffer_size=20)

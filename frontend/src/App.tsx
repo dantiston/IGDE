@@ -41,7 +41,7 @@ const NAV: { page: Page; label: string; icon: ReactNode }[] = [
   },
   {
     page: 'settings',
-    label: 'ACE Settings',
+    label: 'Settings',
     icon: icon(
       <>
         <circle cx="12" cy="12" r="3" />
@@ -117,7 +117,10 @@ function Sidebar() {
 
 function Header() {
   const { status, statusError, setActiveGrammar, navigate, notify } = useApp()
-  const ace = status?.ace
+  const proc = status?.processor
+  const st = proc?.status
+  // e.g. "ACE 0.9.34", or the processor's own name if it already says which
+  const procLabel = proc && st?.ok && !proc.name.includes(st.version ?? '') ? `${proc.name} ${st.version}` : proc?.name
   return (
     <header className="app-header">
       <div className="brand">
@@ -150,11 +153,17 @@ function Header() {
         )}
         <button
           type="button"
-          className={`ace-pill ${statusError ? 'bad' : ace?.ok ? 'ok' : 'bad'}`}
+          className={`processor-pill ${statusError ? 'bad' : st?.ok ? 'ok' : 'bad'}`}
           onClick={() => navigate('settings')}
-          title={statusError ?? ace?.executable ?? ace?.error ?? ''}
+          title={statusError ?? (st ? `${proc?.backendLabel}: ${st.executable ?? st.error ?? ''}` : 'No processor configured')}
         >
-          {statusError ? 'server offline' : ace?.ok ? `ACE ${ace.version}` : 'ACE not configured'}
+          {statusError
+            ? 'server offline'
+            : !proc
+              ? 'No processor'
+              : st?.ok
+                ? procLabel
+                : `${proc.name} not available`}
         </button>
       </div>
     </header>

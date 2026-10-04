@@ -5,7 +5,7 @@ import type { FsEntry, FsListing } from '../types'
 
 const HINT_LABEL: Record<string, string> = {
   'grammar-dir': 'grammar',
-  config: 'ACE config',
+  config: 'grammar config',
   image: 'grammar image',
 }
 

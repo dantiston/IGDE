@@ -1,18 +1,68 @@
-export interface AceStatus {
+/** Whether a processor could be found and run (from its backend's check). */
+export interface ProcessorStatus {
   ok: boolean
-  source: 'settings' | 'env' | 'path' | 'homebrew' | null
-  aceRoot: string | null
+  /** how the executable was found: a key of Backend.sources */
+  source: string | null
+  location: string | null
   executable: string | null
   version: string | null
   error: string | null
 }
 
+export type Capability = 'parse' | 'generate' | 'tfs' | 'compile'
+
+export interface BackendOption {
+  key: string
+  label: string
+  default: number | string
+  help: string
+  type: 'int' | 'str'
+  min: number | null
+  max: number | null
+}
+
+/** A kind of processor IGDE can drive (e.g. ACE). */
+export interface Backend {
+  key: string
+  label: string
+  description: string
+  homepage: string
+  capabilities: Capability[]
+  options: BackendOption[]
+  locationLabel: string
+  locationHelp: string
+  sources: Record<string, string>
+  installCommand: string
+  envVars: Record<string, string | null>
+  configLabel: string
+  imageSuffixes: string[]
+}
+
+/** A configured processor: a backend, where it's installed and its options. */
+export interface Processor {
+  id: number
+  name: string
+  backend: string
+  backendLabel: string
+  location: string
+  options: Record<string, number | string>
+  isDefault: boolean
+  grammars: number
+  status: ProcessorStatus
+}
+
+export interface Install {
+  backend: string
+  backendLabel: string
+  source: string
+  path: string
+  version: string
+}
+
 export interface Settings {
-  aceRoot: string
+  defaultProcessor: number | null
   maxResults: number
   timeoutSeconds: number
-  maxChartMegabytes: number
-  maxUnpackMegabytes: number
   grammarImageDir: string
   defaultGrammarImageDir: string
   profilesDir: string
@@ -30,14 +80,17 @@ export interface Grammar {
   image: { exists: boolean; size: number | null; mtime: number | null }
   compileStatus: 'idle' | 'running' | 'ok' | 'failed'
   compiledAt: string | null
+  /** its processor; null means the default one */
+  processor: number | null
   compileLog?: string
 }
 
-export interface AceProcess {
+export interface ProcessorProcess {
   key: string
   kind: 'parser' | 'generator' | 'lui'
   grammarId: number
   grammarName: string
+  processorName: string
   pid: number
   alive: boolean
   started: number
@@ -47,13 +100,15 @@ export interface AceProcess {
 }
 
 export interface Status {
-  ace: AceStatus
+  /** the processor the workbench uses (the active grammar's) */
+  processor: Processor | null
+  processors: Processor[]
+  backends: Backend[]
   settings: Settings
   activeGrammar: Grammar | null
   grammars: Grammar[]
-  processes: AceProcess[]
+  processes: ProcessorProcess[]
   igdeHome: string
-  envAceRoot: string | null
 }
 
 export type FsHint = 'grammar-dir' | 'config' | 'image' | 'source' | null
@@ -211,7 +266,7 @@ export interface UnifyFailure {
 }
 
 export interface AvmDoc {
-  /** LUI object id ACE assigned to this AVM; usable for unification. */
+  /** LUI object id the processor assigned to this AVM; usable for unification. */
   id: number
   title: string
   avm: Avm

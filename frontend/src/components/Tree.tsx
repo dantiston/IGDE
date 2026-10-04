@@ -133,7 +133,7 @@ const isLeaf = (n: LabelledNode) => n.form !== undefined && !n.children?.length
 /**
  * A parse/realization tree.  Nodes follow the derivation (so a node's key,
  * its path of daughter indices like "0.1.0", identifies the same edge in
- * ACE's TFS chart), labelled with ACE's node labels (S, NP, ...) where the
+ * the processor's TFS chart), labelled with the grammar's node labels (S, NP, ...) where the
  * labelled tree lines up with the derivation, and with rule/lexical entry
  * names otherwise or when `rules` is set.
  */
@@ -141,7 +141,7 @@ export function fromParse(d: DerivationNode, labelled: LabelledNode | null, rule
   const kids = d.daughters ?? []
   const labelKids = labelled?.children?.filter((c) => !isLeaf(c)) ?? []
   const aligned = labelled !== null && labelKids.length === kids.length
-  // grammars without node-label templates get "?" for every node from ACE
+  // grammars without node-label templates get "?" for every node (e.g. from ACE)
   const label = !rules && labelled?.label && labelled.label !== '?' ? labelled.label : d.entity
   return {
     key: path,

@@ -1,35 +1,58 @@
 import { useEffect, useState } from 'react'
 import { api } from '../api'
+import type { ProcessorInput } from '../api'
 import { FileBrowser } from '../components/FileBrowser'
 import { Modal } from '../components/Modal'
 import { useAction, useApp } from '../state'
-import type { AceStatus, Settings } from '../types'
+import type { Backend, Install, Processor, ProcessorStatus, Settings } from '../types'
 
-const SOURCE_LABEL = {
-  settings: 'ACE_ROOT',
-  env: 'the $ACE_ROOT environment variable',
-  path: '$PATH',
-  homebrew: 'Homebrew',
+const CAPABILITY_LABEL: Record<string, string> = {
+  parse: 'parsing',
+  generate: 'generation',
+  tfs: 'TFS browsing (LUI)',
+  compile: 'grammar compilation',
 }
 
-const BREW_INSTALL = 'brew install delph-in/delphin/ace'
+function StatusCard({ status, backend, testId }: { status: ProcessorStatus; backend?: Backend; testId?: string }) {
+  const label = backend?.label ?? 'Processor'
+  return (
+    <div className={`status-card ${status.ok ? 'ok' : 'bad'}`} data-testid={testId}>
+      <div className="status-title">{status.ok ? `${label} ${status.version}` : `${label} not available`}</div>
+      {status.executable && (
+        <div>
+          Executable: <code>{status.executable}</code>
+        </div>
+      )}
+      {status.source && <div className="muted">Found via {backend?.sources[status.source] ?? status.source}</div>}
+      {status.error && <div className="error">{status.error}</div>}
+    </div>
+  )
+}
 
-function DetectedAce({ onUse }: { onUse: (path: string) => void }) {
-  const [found, setFound] = useState<Awaited<ReturnType<typeof api.detectAce>>['found'] | null>(null)
-  useEffect(() => {
-    api.detectAce().then((r) => setFound(r.found), () => setFound([]))
-  }, [])
+function Detected({
+  backend,
+  found,
+  onUse,
+}: {
+  backend: Backend
+  found: Install[] | null
+  onUse: (path: string) => void
+}) {
   if (found === null) return null
+  const mine = found.filter((f) => f.backend === backend.key)
   return (
     <div className="detected">
-      {found.length > 0 ? (
+      {mine.length > 0 ? (
         <>
-          <div className="muted small">ACE installations found on this machine:</div>
+          <div className="muted small">{backend.label} installations found on this machine:</div>
           <ul>
-            {found.map((f) => (
+            {mine.map((f) => (
               <li key={f.path}>
-                <code>{f.path}</code> <span className="badge">ACE {f.version}</span>{' '}
-                <span className="muted small">({SOURCE_LABEL[f.source]})</span>{' '}
+                <code>{f.path}</code>{' '}
+                <span className="badge">
+                  {backend.label} {f.version}
+                </span>{' '}
+                <span className="muted small">({backend.sources[f.source] ?? f.source})</span>{' '}
                 <button type="button" className="small" onClick={() => onUse(f.path)}>
                   Use
                 </button>
@@ -38,109 +61,379 @@ function DetectedAce({ onUse }: { onUse: (path: string) => void }) {
           </ul>
         </>
       ) : (
-        <p className="muted small">No ACE installation found on $PATH or in Homebrew.</p>
+        <p className="muted small">No {backend.label} installation found on this machine.</p>
       )}
-      <p className="muted small">
-        To install ACE with <a href="https://brew.sh">Homebrew</a> (macOS or Linux): <code>{BREW_INSTALL}</code>{' '}
-        <button type="button" className="small ghost" onClick={() => void navigator.clipboard?.writeText(BREW_INSTALL)}>
-          Copy
-        </button>
-      </p>
+      {backend.installCommand && (
+        <p className="muted small">
+          To install {backend.label}: <code>{backend.installCommand}</code>{' '}
+          <button
+            type="button"
+            className="small ghost"
+            onClick={() => void navigator.clipboard?.writeText(backend.installCommand)}
+          >
+            Copy
+          </button>
+        </p>
+      )}
     </div>
   )
 }
 
-function AceStatusCard({ ace }: { ace: AceStatus }) {
+interface FormValues {
+  name: string
+  location: string
+  options: Record<string, number | string>
+}
+
+/** Name, location and backend options of a processor. */
+function ProcessorForm({
+  backend,
+  initial,
+  found,
+  submitLabel,
+  onSubmit,
+  onCancel,
+}: {
+  backend: Backend
+  initial: FormValues
+  found: Install[] | null
+  submitLabel: string
+  onSubmit: (v: ProcessorInput) => Promise<boolean>
+  onCancel?: () => void
+}) {
+  const [form, setForm] = useState(initial)
+  const [test, setTest] = useState<ProcessorStatus | null>(null)
+  const [picker, setPicker] = useState(false)
+  const tester = useAction(api.checkProcessor)
+  const submit = useAction(onSubmit)
+  const setLocation = (location: string) => {
+    setForm((f) => ({ ...f, location }))
+    setTest(null)
+  }
+  const envHint = Object.entries(backend.envVars)
+    .filter(([, v]) => v)
+    .map(([k, v]) => `$${k} (${v})`)
+    .join(', ')
+
   return (
-    <div className={`status-card ${ace.ok ? 'ok' : 'bad'}`} data-testid="ace-status">
-      <div className="status-title">{ace.ok ? `ACE ${ace.version}` : 'ACE not available'}</div>
-      {ace.executable && (
-        <div>
-          Executable: <code>{ace.executable}</code>
+    <>
+      <form
+        className="processor-form"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          await submit.run({ name: form.name, location: form.location, options: form.options })
+        }}
+      >
+        <label className="field">
+          <span>Name</span>
+          <input
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            aria-label="Processor name"
+          />
+        </label>
+        <p className="muted small">{backend.locationHelp}</p>
+        <Detected backend={backend} found={found} onUse={setLocation} />
+        <label className="field">
+          <span>{backend.locationLabel}</span>
+          <div className="row">
+            <input
+              value={form.location}
+              onChange={(e) => setLocation(e.target.value)}
+              placeholder={envHint ? `empty: ${envHint}` : `empty: find ${backend.label} automatically`}
+              spellCheck={false}
+              aria-label={backend.locationLabel}
+            />
+            <button type="button" onClick={() => setPicker(true)}>
+              Browse…
+            </button>
+            <button
+              type="button"
+              disabled={tester.busy}
+              onClick={async () => setTest((await tester.run(backend.key, form.location)) ?? null)}
+            >
+              Test
+            </button>
+          </div>
+        </label>
+        {test && <StatusCard status={test} backend={backend} testId="processor-test" />}
+        {tester.error && <div className="error">{tester.error}</div>}
+        {backend.options.length > 0 && (
+          <div className="grid-fields">
+            {backend.options.map((o) => (
+              <label className="field" key={o.key}>
+                <span>{o.label}</span>
+                <input
+                  type={o.type === 'int' ? 'number' : 'text'}
+                  min={o.min ?? undefined}
+                  max={o.max ?? undefined}
+                  value={form.options[o.key] ?? o.default}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      options: { ...form.options, [o.key]: o.type === 'int' ? Number(e.target.value) : e.target.value },
+                    })
+                  }
+                />
+                <small className="muted">{o.help}</small>
+              </label>
+            ))}
+          </div>
+        )}
+        <div className="row end">
+          {submit.error && <div className="error grow">{submit.error}</div>}
+          {onCancel && (
+            <button type="button" onClick={onCancel}>
+              Cancel
+            </button>
+          )}
+          <button type="submit" className="primary" disabled={submit.busy}>
+            {submit.busy ? 'Saving…' : submitLabel}
+          </button>
+        </div>
+      </form>
+      {picker && (
+        <Modal title={`Choose ${backend.locationLabel}`} onClose={() => setPicker(false)}>
+          <FileBrowser
+            mode="pick-file"
+            onPick={(path) => {
+              setLocation(path)
+              setPicker(false)
+            }}
+            dirActions={(l) => (
+              <button
+                type="button"
+                className="primary"
+                onClick={() => {
+                  setLocation(l.path)
+                  setPicker(false)
+                }}
+              >
+                Use this folder
+              </button>
+            )}
+          />
+          <p className="muted">Pick the {backend.label} executable, or the folder containing it.</p>
+        </Modal>
+      )}
+    </>
+  )
+}
+
+function ProcessorCard({ p, backend, found }: { p: Processor; backend?: Backend; found: Install[] | null }) {
+  const { refresh, notify } = useApp()
+  const [editing, setEditing] = useState(false)
+  const action = useAction(async (fn: () => Promise<unknown>) => {
+    await fn()
+    await refresh()
+  })
+  return (
+    <div className="processor-card" data-testid="processor">
+      <div className="row">
+        <h3 className="grow">
+          {p.name} {p.name !== p.backendLabel && <span className="badge">{p.backendLabel}</span>}
+          {p.isDefault && <span className="badge active">default</span>}
+        </h3>
+        {!editing && backend && (
+          <button type="button" onClick={() => setEditing(true)}>
+            Edit
+          </button>
+        )}
+        {!p.isDefault && (
+          <button
+            type="button"
+            disabled={action.busy}
+            onClick={() => void action.run(() => api.saveSettings({ defaultProcessor: p.id }))}
+          >
+            Make default
+          </button>
+        )}
+        <button
+          type="button"
+          className="danger"
+          disabled={action.busy}
+          onClick={() => {
+            const uses = p.grammars
+              ? ` ${p.grammars} grammar(s) use it and will use the default processor instead.`
+              : ''
+            if (window.confirm(`Remove the processor “${p.name}”? Nothing is deleted from disk.${uses}`))
+              void action.run(() => api.removeProcessor(p.id))
+          }}
+        >
+          Remove
+        </button>
+      </div>
+      <StatusCard status={p.status} backend={backend} testId="processor-status" />
+      {backend && (
+        <div className="muted small">
+          {p.location ? (
+            <>
+              {backend.locationLabel}: <code>{p.location}</code>
+            </>
+          ) : (
+            `${backend.locationLabel} not set: found automatically`
+          )}
+          {backend.options.map((o) => (
+            <span key={o.key}>
+              {' · '}
+              {o.label}: {p.options[o.key]}
+            </span>
+          ))}
+          {' · '}
+          {backend.capabilities.map((c) => CAPABILITY_LABEL[c] ?? c).join(', ')}
         </div>
       )}
-      {ace.source && (
-        <div className="muted">
-          Found via {SOURCE_LABEL[ace.source]}
-        </div>
+      {action.error && <div className="error">{action.error}</div>}
+      {editing && backend && (
+        <ProcessorForm
+          backend={backend}
+          initial={{ name: p.name, location: p.location, options: p.options }}
+          found={found}
+          submitLabel="Save processor"
+          onCancel={() => setEditing(false)}
+          onSubmit={async (v) => {
+            const r = await api.updateProcessor(p.id, v)
+            setEditing(false)
+            notify(
+              r.processor.status.ok
+                ? `${r.processor.name}: ${backend.label} ${r.processor.status.version}`
+                : 'Processor saved',
+              'success',
+            )
+            await refresh()
+            return true
+          }}
+        />
       )}
-      {ace.error && <div className="error">{ace.error}</div>}
     </div>
   )
 }
 
-const LIMITS: { key: keyof Settings; label: string; help: string; min: number }[] = [
-  { key: 'maxResults', label: 'Results per item', help: 'ACE -n: how many parses/realizations to unpack', min: 1 },
-  { key: 'timeoutSeconds', label: 'Timeout (seconds)', help: 'ACE --timeout', min: 1 },
-  { key: 'maxChartMegabytes', label: 'Chart memory (MB)', help: 'ACE --max-chart-megabytes', min: 10 },
-  { key: 'maxUnpackMegabytes', label: 'Unpacking memory (MB)', help: 'ACE --max-unpack-megabytes', min: 10 },
+function AddProcessor({
+  backends,
+  found,
+  onDone,
+}: {
+  backends: Backend[]
+  found: Install[] | null
+  onDone: () => void
+}) {
+  const { refresh, notify } = useApp()
+  const [key, setKey] = useState(backends[0]?.key ?? '')
+  const backend = backends.find((b) => b.key === key)
+  return (
+    <div className="processor-card" data-testid="add-processor">
+      <h3>Add a processor</h3>
+      <label className="field">
+        <span>Type</span>
+        <select value={key} onChange={(e) => setKey(e.target.value)} aria-label="Processor type">
+          {backends.map((b) => (
+            <option key={b.key} value={b.key}>
+              {b.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      {backend && (
+        <>
+          <p className="muted small">
+            {backend.description}{' '}
+            {backend.homepage && (
+              <a href={backend.homepage} target="_blank" rel="noreferrer">
+                {backend.homepage}
+              </a>
+            )}
+          </p>
+          <ProcessorForm
+            key={backend.key}
+            backend={backend}
+            initial={{ name: backend.label, location: '', options: {} }}
+            found={found}
+            submitLabel="Add processor"
+            onCancel={onDone}
+            onSubmit={async (v) => {
+              const r = await api.addProcessor({ ...v, backend: backend.key })
+              notify(`Added ${r.processor.name}`, 'success')
+              await refresh()
+              onDone()
+              return true
+            }}
+          />
+        </>
+      )}
+    </div>
+  )
+}
+
+const LIMITS: { key: 'maxResults' | 'timeoutSeconds'; label: string; help: string; min: number }[] = [
+  { key: 'maxResults', label: 'Results per input', help: 'How many parses or realizations to keep', min: 1 },
+  { key: 'timeoutSeconds', label: 'Timeout (seconds)', help: 'Time allowed for one input', min: 1 },
 ]
 
 export function SettingsPage() {
   const { status, refresh, notify } = useApp()
   const [form, setForm] = useState<Settings | null>(null)
-  const [test, setTest] = useState<AceStatus | null>(null)
-  const [picker, setPicker] = useState<null | 'aceRoot' | 'grammarImageDir' | 'profilesDir'>(null)
+  const [picker, setPicker] = useState<null | 'grammarImageDir' | 'profilesDir'>(null)
+  const [adding, setAdding] = useState(false)
+  const [found, setFound] = useState<Install[] | null>(null)
   const save = useAction(api.saveSettings)
-  const tester = useAction(api.testAce)
   const stopper = useAction(api.stopProcess)
 
   useEffect(() => {
     if (status && !form) setForm(status.settings)
   }, [status, form])
+  useEffect(() => {
+    api.detectProcessors().then(
+      (r) => setFound(r.found),
+      () => setFound([]),
+    )
+    void refresh() // e.g. the processes started since the status was loaded
+  }, [refresh])
 
   if (!status || !form) return <div className="page">Loading…</div>
 
   const set = <K extends keyof Settings>(k: K, v: Settings[K]) => setForm({ ...form, [k]: v })
+  const backendOf = (key: string) => status.backends.find((b) => b.key === key)
 
   const onSave = async () => {
-    const r = await save.run(form)
+    const r = await save.run({
+      maxResults: form.maxResults,
+      timeoutSeconds: form.timeoutSeconds,
+      grammarImageDir: form.grammarImageDir,
+      profilesDir: form.profilesDir,
+    })
     if (r) {
       setForm(r.settings)
-      setTest(null)
-      notify(r.ace.ok ? `Using ACE ${r.ace.version}` : 'Settings saved', 'success')
+      notify('Settings saved', 'success')
       await refresh()
     }
   }
 
   return (
     <div className="page settings-page">
-      <section className="card">
-        <h2>ACE</h2>
+      <section className="card" data-testid="processors">
+        <div className="row">
+          <h2 className="grow">Processors</h2>
+          {!adding && (
+            <button type="button" onClick={() => setAdding(true)}>
+              + Add processor
+            </button>
+          )}
+        </div>
         <p className="muted">
-          IGDE drives a local install of the <a href="https://sweaglesw.org/linguistics/ace/">ACE</a> parser/generator. Point
-          ACE_ROOT at the directory containing the <code>ace</code> binary (for example an unpacked{' '}
-          <code>ace-0.9.34</code> release or a Homebrew prefix) or at the binary itself. Leave it empty to use{' '}
-          <code>$ACE_ROOT</code>, <code>ace</code> on <code>$PATH</code>, or a Homebrew install.
+          IGDE parses, generates and browses feature structures by driving a grammar processor installed on this machine
+          (types: {status.backends.map((b) => b.label).join(', ')}). Each grammar runs with the default processor unless
+          you choose another one for it in Grammars.
         </p>
-        <AceStatusCard ace={status.ace} />
-        <DetectedAce onUse={(path) => set('aceRoot', path)} />
-        <label className="field">
-          <span>ACE_ROOT</span>
-          <div className="row">
-            <input
-              value={form.aceRoot}
-              onChange={(e) => set('aceRoot', e.target.value)}
-              placeholder={status.envAceRoot ? `$ACE_ROOT (${status.envAceRoot})` : 'empty: find ACE automatically ($PATH, Homebrew)'}
-              spellCheck={false}
-              aria-label="ACE_ROOT"
-            />
-            <button type="button" onClick={() => setPicker('aceRoot')}>
-              Browse…
-            </button>
-            <button
-              type="button"
-              disabled={tester.busy}
-              onClick={async () => setTest((await tester.run(form.aceRoot)) ?? null)}
-            >
-              Test
-            </button>
-          </div>
-        </label>
-        {test && <AceStatusCard ace={test} />}
-        {tester.error && <div className="error">{tester.error}</div>}
+        {adding && <AddProcessor backends={status.backends} found={found} onDone={() => setAdding(false)} />}
+        {status.processors.map((p) => (
+          <ProcessorCard key={p.id} p={p} backend={backendOf(p.backend)} found={found} />
+        ))}
+        {!status.processors.length && !adding && <p className="muted">No processors configured yet.</p>}
+      </section>
 
-        <h3>Processing limits</h3>
+      <section className="card">
+        <h2>Processing</h2>
         <div className="grid-fields">
           {LIMITS.map((l) => (
             <label className="field" key={l.key}>
@@ -148,8 +441,8 @@ export function SettingsPage() {
               <input
                 type="number"
                 min={l.min}
-                value={form[l.key] as number}
-                onChange={(e) => set(l.key, Number(e.target.value) as never)}
+                value={form[l.key]}
+                onChange={(e) => set(l.key, Number(e.target.value))}
               />
               <small className="muted">{l.help}</small>
             </label>
@@ -168,7 +461,7 @@ export function SettingsPage() {
               Browse…
             </button>
           </div>
-          <small className="muted">Where grammars compiled from a config.tdl are written.</small>
+          <small className="muted">Where grammars compiled from their configuration file are written.</small>
         </label>
         <label className="field">
           <span>Test suite runs directory</span>
@@ -196,7 +489,7 @@ export function SettingsPage() {
 
       <section className="card">
         <div className="row">
-          <h2 className="grow">ACE processes</h2>
+          <h2 className="grow">Running processes</h2>
           <button type="button" onClick={() => void refresh()}>
             Refresh
           </button>
@@ -221,6 +514,7 @@ export function SettingsPage() {
               <tr>
                 <th>Kind</th>
                 <th>Grammar</th>
+                <th>Processor</th>
                 <th>PID</th>
                 <th>Requests</th>
                 <th>Started</th>
@@ -232,6 +526,7 @@ export function SettingsPage() {
                 <tr key={p.key}>
                   <td>{p.kind === 'lui' ? 'TFS (LUI)' : p.kind}</td>
                   <td>{p.grammarName}</td>
+                  <td>{p.processorName}</td>
                   <td>{p.pid}</td>
                   <td>{p.requests}</td>
                   <td>{new Date(p.started * 1000).toLocaleTimeString()}</td>
@@ -251,7 +546,7 @@ export function SettingsPage() {
             </tbody>
           </table>
         ) : (
-          <p className="muted">No ACE processes running.</p>
+          <p className="muted">No processes running.</p>
         )}
         <p className="muted small">
           IGDE data directory: <code>{status.igdeHome}</code>
@@ -259,32 +554,17 @@ export function SettingsPage() {
       </section>
 
       {picker && (
-        <Modal title={picker === 'aceRoot' ? 'Choose ACE_ROOT' : picker === 'profilesDir' ? 'Choose test suite runs directory' : 'Choose compiled grammar directory'} onClose={() => setPicker(null)}>
+        <Modal
+          title={picker === 'profilesDir' ? 'Choose test suite runs directory' : 'Choose compiled grammar directory'}
+          onClose={() => setPicker(null)}
+        >
           <FileBrowser
-            mode={picker === 'aceRoot' ? 'pick-file' : 'pick-dir'}
-            accept={(e) => e.name === 'ace'}
+            mode="pick-dir"
             onPick={(path) => {
               set(picker, path)
               setPicker(null)
             }}
-            dirActions={
-              picker === 'aceRoot'
-                ? (l) => (
-                    <button
-                      type="button"
-                      className="primary"
-                      onClick={() => {
-                        set('aceRoot', l.path)
-                        setPicker(null)
-                      }}
-                    >
-                      Use this folder as ACE_ROOT
-                    </button>
-                  )
-                : undefined
-            }
           />
-          {picker === 'aceRoot' && <p className="muted">Pick the folder containing <code>ace</code>, or click the <code>ace</code> binary.</p>}
         </Modal>
       )}
     </div>

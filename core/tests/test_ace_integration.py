@@ -14,21 +14,27 @@ from pathlib import Path
 
 from django.test import TransactionTestCase, override_settings
 
-from core.ace import environment
-from core.ace.manager import manager
-from core.models import AceConfig, Grammar
+from core.models import AppSettings, Grammar
+from core.processors.ace import find_executable
+from core.processors.manager import manager
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
 
 def _ace_root():
     for root in (os.environ.get("IGDE_TEST_ACE_ROOT"), os.environ.get("ACE_ROOT"), shutil.which("ace")):
-        if root and environment.find_executable(root):
+        if root and find_executable(root):
             return root
     return None
 
 
 ACE_ROOT = _ace_root()
+
+
+def use_ace(test):
+    """Point IGDE's ACE processor at ACE_ROOT."""
+    pid = AppSettings.load().processor().id
+    test.post(f"/api/processors/{pid}", {"location": ACE_ROOT}, method="put")
 
 
 @unittest.skipUnless(ACE_ROOT, "ACE not found (set IGDE_TEST_ACE_ROOT)")
@@ -44,7 +50,7 @@ class AceIntegrationTests(TransactionTestCase):
         shutil.copytree(FIXTURES / "tiniest", self.grammar_dir)
         manager.settings_changed()
         self.addCleanup(manager.settings_changed)
-        self.post("/api/settings", {"aceRoot": ACE_ROOT}, method="put")
+        use_ace(self)
         g = self.post("/api/grammars", {"configPath": str(self.grammar_dir), "compile": True})["grammar"]
         self.gid = g["id"]
         self.wait_for_compile()
@@ -157,4 +163,4 @@ class AceIntegrationTests(TransactionTestCase):
         self.assertTrue(self.client.get("/api/processes").json()["processes"])
         self.post("/api/settings", {"maxResults": 2}, method="put")
         self.assertEqual(self.client.get("/api/processes").json()["processes"], [])
-        self.assertEqual(AceConfig.load().max_results, 2)
+        self.assertEqual(AppSettings.load().max_results, 2)

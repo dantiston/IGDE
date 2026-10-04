@@ -1,21 +1,27 @@
-"""A long-lived ``ace -l`` process that IGDE talks to as if it were LUI.
+"""A long-lived processor in LUI mode that IGDE talks to as if it were LUI.
 
-Plumbing:
+`LUI <https://github.com/delph-in/docs/wiki/LkbLui>`_ is the LKB's
+feature structure viewer; processors that support it (e.g. ACE) send it
+parse trees, AVMs and type hierarchies and answer its ``browse``/``unify``
+requests.  :class:`LuiSession` is the plumbing:
 
-* stdin (pipe): sentences to parse and ``:t``/``:l``/``:r``/``:i``/``:H``
-  browsing commands, exactly as typed at ACE's interactive LUI prompt;
-* the LUI channel (one end of a socketpair passed with ``--lui-fd``): ACE
-  writes trees/AVMs/hierarchies there and reads ``browse``/``unify``
-  requests from it;
-* stdout+stderr (a pty, so ACE line-buffers rather than block-buffers):
-  diagnostics, and the replies to our synchronisation sentinels.
+* stdin (pipe): sentences to parse and browsing commands, as typed at the
+  processor's interactive prompt;
+* the LUI channel (one end of a socketpair whose fd is passed to the
+  processor): the processor writes trees/AVMs/hierarchies there and reads
+  ``browse``/``unify`` requests from it;
+* stdout+stderr (a pty, so the processor line-buffers rather than
+  block-buffers): diagnostics, and the replies to our synchronisation
+  sentinels.
 
-ACE never acknowledges a command, so after each one we send a sentinel
-that makes ACE print a recognisable "no such type" error on the same
-channel's thread: a ``:t`` lookup via stdin (handled by ACE's main loop) or
-a ``type ... skeleton`` request via the LUI socket (handled by ACE's LUI
-listener thread).  Once the sentinel's reply arrives, everything the
-command wrote to the LUI socket is already in the socket buffer.
+The LUI protocol has no acknowledgements, so after each command we send a
+*sentinel*: a command that makes the processor print a recognisable reply
+on the same channel's thread.  Once the sentinel's reply arrives,
+everything the command wrote to the LUI socket is in the socket buffer.
+
+How to start the processor, what the sentinels and browsing commands look
+like, and how replies are worded differ between processors; a subclass per
+backend provides them (see ``ace.AceLuiSession``).
 """
 
 from __future__ import annotations
@@ -33,7 +39,6 @@ import time
 
 from .lui import parse_messages
 
-_CHART_RE = re.compile(r"out-of-date chart (\d+) requested \[(\d+) is current\]")
 _session_ids = itertools.count(1)
 
 
@@ -42,6 +47,38 @@ class LuiError(RuntimeError):
 
 
 class LuiSession:
+    #: the processor's name, for messages
+    label = "the processor"
+    #: matches the processor's complaint about a stale chart id; group 2
+    #: is the current chart id
+    stale_chart_re: re.Pattern | None = None
+
+    # -- the processor's dialect (override per backend) -----------------------
+    def command(self, executable, grammar_image, lui_fd: int, cmdargs) -> list[str]:
+        """The command line that starts the processor in LUI mode."""
+        raise NotImplementedError
+
+    def stdin_sentinel(self, token: str) -> tuple[str, bytes]:
+        """A stdin command and the output (on the pty) that answers it."""
+        raise NotImplementedError
+
+    def lui_sentinel(self, token: str) -> tuple[str, bytes]:
+        """A LUI request and the output (on the pty) that answers it."""
+        raise NotImplementedError
+
+    def lookup_command(self, kind: str, name: str) -> str:
+        """The stdin command that shows a type/lex/rule/instance."""
+        raise NotImplementedError
+
+    def hierarchy_command(self, type_name: str) -> str:
+        """The stdin command that sends the hierarchy around a type."""
+        raise NotImplementedError
+
+    def parse_definition(self, output: str) -> dict | None:
+        """{name, file, line, tdl} from a lookup's output, if it says."""
+        return None
+
+    # -------------------------------------------------------------------------
     def __init__(self, executable, grammar_image, cmdargs=(), env=None, cwd=None, startup_timeout=180):
         self.id = next(_session_ids)
         self.lock = threading.RLock()
@@ -61,7 +98,7 @@ class LuiSession:
         termios.tcsetattr(slave, termios.TCSANOW, attrs)
         try:
             self.proc = subprocess.Popen(
-                [str(executable), "-g", str(grammar_image), "-l", "--lui-fd", str(child.fileno()), *cmdargs],
+                self.command(executable, grammar_image, child.fileno(), cmdargs),
                 stdin=subprocess.PIPE,
                 stdout=slave,
                 stderr=slave,
@@ -115,7 +152,7 @@ class LuiSession:
         if self._pty in r:
             try:
                 data = os.read(self._pty, 1 << 16)
-            except OSError:  # EIO once ACE exits and the pty slave closes
+            except OSError:  # EIO once the processor exits and the pty slave closes
                 data = b""
             if data:
                 self._out.extend(data.replace(b"\r", b""))
@@ -142,14 +179,14 @@ class LuiSession:
         while needle not in self._out:
             remaining = deadline - time.monotonic()
             if remaining <= 0:
-                raise LuiError(f"ACE did not respond within {timeout:.0f}s")
+                raise LuiError(f"{self.label} did not respond within {timeout:.0f}s")
             if not self._read_available(min(remaining, 0.5)) and self.proc.poll() is not None:
                 # drain whatever is left, then report
                 while self._read_available(0):
                     pass
                 if needle in self._out:
                     break
-                raise LuiError(f"ACE exited (status {self.proc.returncode}): {self.output_tail()}")
+                raise LuiError(f"{self.label} exited (status {self.proc.returncode}): {self.output_tail()}")
         self._drain_lui()
 
     def output_tail(self, n=2000):
@@ -157,7 +194,7 @@ class LuiSession:
 
     def _begin(self):
         if not self.alive():
-            raise LuiError(f"ACE exited (status {self.proc.returncode}): {self.output_tail()}")
+            raise LuiError(f"{self.label} exited (status {self.proc.returncode}): {self.output_tail()}")
         self._out.clear()
         self._lui.clear()
 
@@ -187,15 +224,14 @@ class LuiSession:
             self._known_ids.add(m["id"])
 
     def _stdin_sync(self, timeout):
-        token = f"__igde_sync_{next(self._sync)}__"
-        self.proc.stdin.write(f":t {token}\n".encode())
+        line, sentinel = self.stdin_sentinel(f"__igde_sync_{next(self._sync)}__")
+        self.proc.stdin.write(f"{line}\n".encode())
         self.proc.stdin.flush()
-        sentinel = f"no such type `{token}'".encode()
         self._pump_until(sentinel, timeout)
         return sentinel
 
     def stdin_command(self, line: str, timeout=120):
-        """Send a line on ACE's stdin (a sentence or a :command)."""
+        """Send a line on the processor's stdin (a sentence or a command)."""
         line = line.replace("\n", " ").strip()
         with self.lock:
             self._begin()
@@ -208,16 +244,15 @@ class LuiSession:
         """Send a request over the LUI channel (browse/unify/daglist)."""
         with self.lock:
             self._begin()
-            token = f"__igde_sync_{next(self._sync)}__"
-            self._sock.sendall(f"{line}\ntype {token} skeleton\n".encode())
-            sentinel = f"no such type `{token}'".encode()
+            request, sentinel = self.lui_sentinel(f"__igde_sync_{next(self._sync)}__")
+            self._sock.sendall(f"{line}\n{request}\n".encode())
             self._pump_until(sentinel, timeout)
             return self._finish(sentinel)
 
     # -- high level operations -------------------------------------------------
     def knows(self, ident: int) -> bool:
-        # ACE dereferences unknown object ids without checking, so only ever
-        # send it ids it handed out.
+        # Processors may dereference unknown object ids without checking
+        # (ACE does, and crashes), so only ever send ids they handed out.
         return ident in self._known_ids
 
     def parse(self, sentence: str, timeout=120):
@@ -238,7 +273,7 @@ class LuiSession:
             raise LuiError(f"unknown object #{ident} (stale TFS session?)")
         for _ in range(2):
             msgs, out = self.lui_command(f"browse {self.chart_id} {ident} {what}")
-            m = _CHART_RE.search(out)
+            m = self.stale_chart_re.search(out) if self.stale_chart_re else None
             if m and not [x for x in msgs if x["kind"] == "avm"]:
                 self.chart_id = int(m.group(2))
                 continue
@@ -255,17 +290,13 @@ class LuiSession:
 
     def lookup(self, kind: str, name: str):
         """Look up a type/lexical entry/rule/instance by (partial) name."""
-        cmd = {"type": "t", "lex": "l", "rule": "r", "instance": "i"}[kind]
         name = name.strip()
         if not name or any(c.isspace() for c in name):
             raise LuiError("names cannot be empty or contain whitespace")
-        msgs, out = self.stdin_command(f":{cmd} {name}")
+        msgs, out = self.stdin_command(self.lookup_command(kind, name))
         avms = [m for m in msgs if m["kind"] == "avm"]
         texts = [m for m in msgs if m["kind"] == "text"]
-        definition = None
-        m = re.search(r"^(\S+) -- defined at (.+):(\d+)\n(.*)", out, re.S | re.M)
-        if m:
-            definition = {"name": m.group(1), "file": m.group(2), "line": int(m.group(3)), "tdl": m.group(4).strip()}
+        definition = self.parse_definition(out)
         if avms:
             a = avms[0]
             return {"avm": a["avm"], "id": a["id"], "title": a["title"], "definition": definition}
@@ -279,7 +310,7 @@ class LuiSession:
         type_name = type_name.strip()
         if not type_name or any(c.isspace() for c in type_name):
             raise LuiError("type names cannot be empty or contain whitespace")
-        msgs, out = self.stdin_command(f":H {type_name}")
+        msgs, out = self.stdin_command(self.hierarchy_command(type_name))
         h = next((m for m in msgs if m["kind"] == "hierarchy"), None)
         if h is None:
             raise LuiError(out.strip() or f"no such type {type_name}")
@@ -305,7 +336,7 @@ class LuiSession:
             }
         text = next((m for m in msgs if m["kind"] == "text"), None)
         if text is not None:
-            self.chart_id += 1  # lui_text() advances ACE's chart counter
+            self.chart_id += 1  # a text reply uses up a chart id too
             return {"ok": False, "message": " ".join(e["text"] for e in text["entries"])}
         raise LuiError(out.strip() or "unification produced no result")
 
@@ -313,5 +344,5 @@ class LuiSession:
 def _single_avm(msgs, out):
     avm = next((m for m in msgs if m["kind"] == "avm"), None)
     if avm is None:
-        raise LuiError(out.strip() or "ACE returned no AVM")
+        raise LuiError(out.strip() or "no feature structure was returned")
     return {"avm": avm["avm"], "id": avm["id"], "title": avm["title"]}

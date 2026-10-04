@@ -1,4 +1,4 @@
-"""Turn PyDelphin/ACE responses into JSON-friendly structures for the UI."""
+"""Turn PyDelphin processor responses into JSON-friendly structures for the UI."""
 
 from __future__ import annotations
 
@@ -29,7 +29,7 @@ _SEXPR_TOKEN = re.compile(r'\s*(?:(\()|(\))|"((?:[^"\\]|\\.)*)"|([^\s()"]+))')
 
 
 def parse_labelled_tree(text: str | None):
-    """Parse ACE's --report-labels tree into ``{label, children}`` /
+    """Parse a labelled tree (e.g. from ACE's --report-labels) into ``{label, children}`` /
     ``{form}`` nodes."""
     if not text:
         return None
@@ -81,16 +81,16 @@ _EP_PRED = re.compile(r'\[\s*("(?:[^"\\]|\\.)*"|[^\s<\[\]"]+)(?:<[^>]*>)?\s+LBL:
 
 
 def raw_predicates(raw: str | None) -> list[str]:
-    """Predicates exactly as ACE wrote them, in EP order.
+    """Predicates exactly as the processor wrote them, in EP order.
 
     PyDelphin normalizes predicates (``"_dog_n_rel"`` becomes ``_dog_n``),
-    but grammar engineers need to see, and ACE needs to be given back, the
+    but grammar engineers need to see, and processors need to be given back, the
     grammar's own predicate strings."""
     return [m.group(1) for m in _EP_PRED.finditer(raw or "")]
 
 
 def format_simplemrs(raw: str) -> str:
-    """Indent ACE's one-line SimpleMRS without changing any of its tokens."""
+    """Indent a one-line SimpleMRS without changing any of its tokens."""
     out, depth, in_str, in_rels, seen_ep = [], 0, False, False, False
     i = 0
     while i < len(raw):
