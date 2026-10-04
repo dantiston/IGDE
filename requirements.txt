@@ -1,0 +1,2 @@
+Django>=5.2,<6
+pydelphin>=1.11

@@ -1,0 +1,3 @@
+root := sign &
+  [ SYNSEM.LOCAL.CAT [ VAL.SUBJ < >,
+                       HEAD verb ] ].

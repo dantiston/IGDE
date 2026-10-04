@@ -9,3 +9,8 @@ __pycache__/
 node_modules
 # Ignore collected static files
 IGDE/static/
+# Python virtualenv
+.venv/
+# Frontend build output and test artifacts (built with `npm run build`)
+frontend/dist/
+frontend/*.tsbuildinfo

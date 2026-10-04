@@ -1,0 +1,16 @@
+:begin :type.
+:include "tiniest".
+:include "skolem".
+:end :type.
+
+:begin :instance :status lex-entry.
+:include "lexicon".
+:end :instance.
+
+:begin :instance :status rule.
+:include "rules".
+:end :instance.
+
+:begin :instance.
+:include "roots".
+:end :instance.
