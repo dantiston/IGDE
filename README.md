@@ -23,6 +23,16 @@ and a [React](https://react.dev) app is the user interface.
   image (`.dat`); expand it to browse and edit its TDL in the editor (with
   save conflict detection), recompile after changes, and choose the active
   grammar. A Disk tab opens any other file.
+* **Test Suites**: [incr tsdb()] profiles. Create a test suite from
+  sentences (a leading `*` marks an ungrammatical item) or add any existing
+  profile (e.g. a grammar's `tsdb/gold` profiles), edit its items, and run it
+  with the active grammar: each run is a new profile (in `~/.igde/profiles`
+  by default), processed by ACE in the background with progress and cancel.
+  Inspect coverage, overgeneration, readings, timing and errors, open any
+  item's trees and MRS, and compare a run with an earlier run or with gold:
+  items are marked gained, lost, changed (the other profile's analysis is no
+  longer produced; MRSs compared up to isomorphism) or readings (same
+  analysis, different number of readings).
 * **Workbench**: one running feed. From the input bar at the top, parse a
   sentence, generate from an MRS (paste one, or pick any parse in the feed),
   or look up a type, lexical entry, rule or instance; each result is added to
@@ -138,5 +148,6 @@ CSRF token.  Don't expose it to a network.
   detection) and process management; local grammar/file manager with
   compilation and editing; a workbench feed of parses (trees, MRS, DMRS,
   EDS), generations, and typed feature structures with interactive
-  unification via ACE's LUI mode.
+  unification via ACE's LUI mode; [incr tsdb()] test suites with runs,
+  inspection and comparison.
 * v0.1: basic UI, parsing.

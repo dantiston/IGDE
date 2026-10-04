@@ -4,6 +4,7 @@ import { FeedProvider } from './feed/FeedContext'
 import { FeedPage } from './feed/FeedPage'
 import { GrammarsPage } from './pages/GrammarsPage'
 import { SettingsPage } from './pages/SettingsPage'
+import { TestSuitesPage } from './pages/TestSuitesPage'
 import { AppProvider, useApp } from './state'
 import type { Page } from './state'
 
@@ -31,6 +32,12 @@ const NAV: { page: Page; label: string; icon: ReactNode }[] = [
     page: 'grammars',
     label: 'Grammars',
     icon: icon(<path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2.5zM4 19.5A2 2 0 0 0 6 21h13M8 7h7M8 11h5" />),
+  },
+  {
+    page: 'testsuites',
+    label: 'Test Suites',
+    // a checklist
+    icon: icon(<path d="M9 6h11M9 12h11M9 18h11M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2" />),
   },
   {
     page: 'settings',
@@ -186,6 +193,7 @@ function Shell() {
             <>
               {page === 'workbench' && <FeedPage />}
               {page === 'grammars' && <GrammarsPage />}
+              {page === 'testsuites' && <TestSuitesPage />}
               {page === 'settings' && <SettingsPage />}
             </>
           )}

@@ -80,7 +80,7 @@ export function SettingsPage() {
   const { status, refresh, notify } = useApp()
   const [form, setForm] = useState<Settings | null>(null)
   const [test, setTest] = useState<AceStatus | null>(null)
-  const [picker, setPicker] = useState<null | 'aceRoot' | 'grammarImageDir'>(null)
+  const [picker, setPicker] = useState<null | 'aceRoot' | 'grammarImageDir' | 'profilesDir'>(null)
   const save = useAction(api.saveSettings)
   const tester = useAction(api.testAce)
   const stopper = useAction(api.stopProcess)
@@ -170,6 +170,22 @@ export function SettingsPage() {
           </div>
           <small className="muted">Where grammars compiled from a config.tdl are written.</small>
         </label>
+        <label className="field">
+          <span>Test suite runs directory</span>
+          <div className="row">
+            <input
+              value={form.profilesDir}
+              placeholder={form.defaultProfilesDir}
+              onChange={(e) => set('profilesDir', e.target.value)}
+              spellCheck={false}
+              aria-label="Test suite runs directory"
+            />
+            <button type="button" onClick={() => setPicker('profilesDir')}>
+              Browse…
+            </button>
+          </div>
+          <small className="muted">Where the [incr tsdb()] profiles of test suite runs are written.</small>
+        </label>
         <div className="row end">
           {save.error && <div className="error grow">{save.error}</div>}
           <button type="button" className="primary" disabled={save.busy} onClick={onSave}>
@@ -243,7 +259,7 @@ export function SettingsPage() {
       </section>
 
       {picker && (
-        <Modal title={picker === 'aceRoot' ? 'Choose ACE_ROOT' : 'Choose compiled grammar directory'} onClose={() => setPicker(null)}>
+        <Modal title={picker === 'aceRoot' ? 'Choose ACE_ROOT' : picker === 'profilesDir' ? 'Choose test suite runs directory' : 'Choose compiled grammar directory'} onClose={() => setPicker(null)}>
           <FileBrowser
             mode={picker === 'aceRoot' ? 'pick-file' : 'pick-dir'}
             accept={(e) => e.name === 'ace'}

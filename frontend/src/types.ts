@@ -15,6 +15,8 @@ export interface Settings {
   maxUnpackMegabytes: number
   grammarImageDir: string
   defaultGrammarImageDir: string
+  profilesDir: string
+  defaultProfilesDir: string
   activeGrammar: number | null
 }
 
@@ -232,4 +234,67 @@ export interface HierarchyNode {
   name: string
   parents: number[]
   children: number[]
+}
+
+/* ---- test suites ([incr tsdb()] profiles) ---- */
+
+export interface ProfileStats {
+  items: number
+  wellformed: number
+  illformed: number
+  processed: number
+  parsed: number
+  coverage: number | null
+  overgeneration: number | null
+  errors: number
+  avgReadings: number | null
+  avgTime: number | null
+  runInfo: { application?: string; grammar?: string; start?: string; end?: string; user?: string; host?: string } | null
+  error?: string
+}
+
+export interface Profile {
+  id: number
+  name: string
+  path: string
+  kind: 'suite' | 'run'
+  suite: number | null
+  grammar: number | null
+  grammarName: string
+  owned: boolean
+  created: string | null
+  runStatus: 'idle' | 'running' | 'ok' | 'failed' | 'cancelled'
+  exists: boolean
+  progress: { done: number; total: number; started: number } | null
+  stats: ProfileStats | null
+  runLog?: string
+  rows?: ProfileRow[]
+}
+
+export interface ProfileRow {
+  id: number
+  input: string
+  wf: number
+  comment: string
+  processed: boolean
+  readings?: number | null
+  time?: number | null
+  error?: string | null
+  results?: number
+}
+
+export type CompareStatus = 'gained' | 'lost' | 'changed' | 'readings' | 'same' | 'missing'
+
+export interface Comparison {
+  items: Record<string, { status: CompareStatus; readings: number | null; otherReadings: number | null }>
+  counts: Partial<Record<CompareStatus, number>>
+}
+
+export interface ItemResults {
+  item: { id: number; input: string; wf: number; comment: string }
+  processed: boolean
+  readings?: number | null
+  error?: string | null
+  time?: number | null
+  results: (ParseResult & { surface?: string | null })[]
 }

@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { api } from './api'
 import type { Status } from './types'
 
-export const PAGES = ['workbench', 'grammars', 'settings'] as const
+export const PAGES = ['workbench', 'grammars', 'testsuites', 'settings'] as const
 export type Page = (typeof PAGES)[number]
 
 /** One-shot hand-offs between pages, e.g. "open this file at this line". */

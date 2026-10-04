@@ -12,6 +12,9 @@ import type {
   TfsParse,
   AceStatus,
   AceProcess,
+  Comparison,
+  ItemResults,
+  Profile,
 } from './types'
 
 export class ApiError extends Error {
@@ -110,6 +113,21 @@ export const api = {
 
   processes: () => request<{ processes: AceProcess[] }>('GET', '/api/processes'),
   stopProcess: (key?: string) => request<{ processes: AceProcess[] }>('POST', '/api/processes/stop', { key }),
+
+  profiles: () => request<{ profiles: Profile[] }>('GET', '/api/profiles'),
+  createSuite: (name: string, text: string, directory?: string) =>
+    request<{ profile: Profile }>('POST', '/api/profiles', { action: 'create', name, text, directory }),
+  addProfile: (path: string, name?: string) => request<{ profile: Profile }>('POST', '/api/profiles', { action: 'add', path, name }),
+  profile: (id: number) => request<{ profile: Profile }>('GET', `/api/profiles/${id}`),
+  renameProfile: (id: number, name: string) => request<{ profile: Profile }>('PATCH', `/api/profiles/${id}`, { name }),
+  removeProfile: (id: number, deleteFiles = false) =>
+    request<{ deleted: number }>('DELETE', `/api/profiles/${id}${deleteFiles ? '?files=1' : ''}`),
+  saveItems: (id: number, items: { id: number | null; input: string; wf: number; comment: string }[]) =>
+    request<{ profile: Profile }>('PUT', `/api/profiles/${id}/items`, { items }),
+  runProfile: (id: number, grammar?: number, n?: number) => request<{ profile: Profile }>('POST', `/api/profiles/${id}/run`, { grammar, n }),
+  cancelRun: (id: number) => request<{ cancelling: boolean }>('POST', `/api/profiles/${id}/cancel`, {}),
+  profileItem: (id: number, iid: number) => request<ItemResults>('GET', `/api/profiles/${id}/items/${iid}`),
+  compareProfiles: (id: number, other: number) => request<Comparison>('GET', `/api/profiles/${id}/compare/${other}`),
 
   tfsParse: (sentence: string, grammar?: number) =>
     request<TfsParse>('POST', '/api/tfs/parse', { sentence, grammar }),

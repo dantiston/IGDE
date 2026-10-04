@@ -17,6 +17,8 @@ class AceConfig(models.Model):
     max_unpack_megabytes = models.PositiveIntegerField(default=1500)
     # Where compiled grammar images go by default.
     grammar_image_dir = models.CharField(max_length=4096, blank=True, default="")
+    # Where test suite runs (processed [incr tsdb()] profiles) are written.
+    profiles_dir = models.CharField(max_length=4096, blank=True, default="")
     active_grammar = models.ForeignKey(
         "Grammar", null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
     )
@@ -31,6 +33,11 @@ class AceConfig(models.Model):
             return Path(self.grammar_image_dir).expanduser()
         return settings.IGDE_HOME / "grammars"
 
+    def run_dir(self) -> Path:
+        if self.profiles_dir:
+            return Path(self.profiles_dir).expanduser()
+        return settings.IGDE_HOME / "profiles"
+
     def to_dict(self):
         return {
             "aceRoot": self.ace_root,
@@ -40,6 +47,8 @@ class AceConfig(models.Model):
             "maxUnpackMegabytes": self.max_unpack_megabytes,
             "grammarImageDir": self.grammar_image_dir,
             "defaultGrammarImageDir": str(settings.IGDE_HOME / "grammars"),
+            "profilesDir": self.profiles_dir,
+            "defaultProfilesDir": str(settings.IGDE_HOME / "profiles"),
             "activeGrammar": self.active_grammar_id,
         }
 
@@ -110,4 +119,55 @@ class Grammar(models.Model):
             "image": self.image_info(),
             "compileStatus": self.compile_status,
             "compiledAt": self.compiled_at.isoformat() if self.compiled_at else None,
+        }
+
+
+class Profile(models.Model):
+    """An [incr tsdb()] profile on the user's machine.
+
+    A *test suite* is a profile the user created or added (a skeleton of test
+    items, or any existing profile such as a grammar's gold profiles).  A
+    *run* is a profile IGDE made by processing a test suite's items with a
+    grammar; IGDE owns its directory.
+    """
+
+    SUITE = "suite"
+    RUN = "run"
+
+    RUN_IDLE = "idle"
+    RUN_RUNNING = "running"
+    RUN_OK = "ok"
+    RUN_FAILED = "failed"
+    RUN_CANCELLED = "cancelled"
+
+    name = models.CharField(max_length=300)
+    path = models.CharField(max_length=4096)
+    kind = models.CharField(max_length=8, default=SUITE)
+    suite = models.ForeignKey("self", null=True, blank=True, on_delete=models.SET_NULL, related_name="runs")
+    grammar = models.ForeignKey(Grammar, null=True, blank=True, on_delete=models.SET_NULL, related_name="+")
+    grammar_name = models.CharField(max_length=200, blank=True, default="")
+    owned = models.BooleanField(default=False)  # IGDE created the directory
+    created = models.DateTimeField(auto_now_add=True)
+    run_status = models.CharField(max_length=16, default=RUN_IDLE)
+    run_log = models.TextField(blank=True, default="")
+
+    class Meta:
+        ordering = ["kind", "name", "id"]
+
+    def __str__(self):
+        return self.name
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "name": self.name,
+            "path": self.path,
+            "kind": self.kind,
+            "suite": self.suite_id,
+            "grammar": self.grammar_id,
+            "grammarName": self.grammar_name,
+            "owned": self.owned,
+            "created": self.created.isoformat() if self.created else None,
+            "runStatus": self.run_status,
+            "exists": Path(self.path).is_dir(),
         }

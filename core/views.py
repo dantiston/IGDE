@@ -15,11 +15,13 @@ from django.http import FileResponse, Http404, HttpResponse, JsonResponse
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_http_methods
 
-from . import fs
+from delphin import tsdb as delphin_tsdb
+
+from . import fs, profiles
 from .ace import environment, results
 from .ace.lui_session import LuiError
 from .ace.manager import AceUnavailable, manager
-from .models import AceConfig, Grammar
+from .models import AceConfig, Grammar, Profile
 
 log = logging.getLogger(__name__)
 
@@ -60,6 +62,12 @@ def api(*methods):
                 return JsonResponse({"error": str(e), "ace": True}, status=502)
             except Grammar.DoesNotExist:
                 return JsonResponse({"error": "No such grammar."}, status=404)
+            except Profile.DoesNotExist:
+                return JsonResponse({"error": "No such test suite or profile."}, status=404)
+            except profiles.ProfileError as e:
+                return JsonResponse({"error": str(e)}, status=e.status)
+            except delphin_tsdb.TSDBError as e:
+                return JsonResponse({"error": f"[incr tsdb()] error: {e}"}, status=400)
 
         return wrapper
 
@@ -118,6 +126,7 @@ SETTING_FIELDS = {
     "maxChartMegabytes": ("max_chart_megabytes", int),
     "maxUnpackMegabytes": ("max_unpack_megabytes", int),
     "grammarImageDir": ("grammar_image_dir", str),
+    "profilesDir": ("profiles_dir", str),
 }
 SETTING_LIMITS = {
     "max_results": (1, 10000),
@@ -444,6 +453,137 @@ def tfs_unify(request):
     with m.lock:
         data = m.obj.unify(*args)
     return {"session": m.obj.id, **data}
+
+
+# ---------------------------------------------------------------------------
+# Test suites ([incr tsdb()] profiles)
+
+
+def _profile_dict(p: Profile, stats=True):
+    job = profiles.job(p.id)
+    if p.run_status == Profile.RUN_RUNNING and job is None:
+        # the server was restarted during the run
+        p.run_status = Profile.RUN_FAILED
+        p.run_log += "\n(interrupted: IGDE was restarted during the run)\n"
+        p.save(update_fields=["run_status", "run_log"])
+    d = p.to_dict()
+    d["progress"] = job.to_dict() if job else None
+    # don't read a profile while ACE is still writing it
+    d["stats"] = profiles.stats_for(p) if stats and job is None else None
+    return d
+
+
+@api("GET", "POST")
+def profile_list(request):
+    if request.method == "GET":
+        return {"profiles": [_profile_dict(p) for p in Profile.objects.all()]}
+    action = _body(request, "action")
+    name = (request.json.get("name") or "").strip()
+    if action == "create":
+        if not name:
+            raise ApiError("Give the test suite a name.")
+        directory = (request.json.get("directory") or "").strip()
+        base = fs.resolve(directory) if directory else AceConfig.load().run_dir().parent / "testsuites"
+        path = base / _slug(name)
+        items = profiles.parse_item_lines(request.json.get("text") or "")
+        if not items:
+            raise ApiError("Add at least one test item (one per line).")
+        profiles.create_suite(path, items)
+        p = Profile.objects.create(name=name, path=str(path), kind=Profile.SUITE)
+    elif action == "add":
+        path = fs.resolve(_body(request, "path"))
+        if not profiles.is_profile(path):
+            raise ApiError(f"{path} is not an [incr tsdb()] profile (it has no relations file).")
+        p = Profile.objects.create(name=name or path.name, path=str(path), kind=Profile.SUITE)
+    else:
+        raise ApiError("'action' must be 'create' or 'add'.")
+    return {"profile": _profile_dict(p)}
+
+
+@api("GET", "PATCH", "DELETE")
+def profile_detail(request, pid):
+    p = Profile.objects.get(pk=pid)
+    if request.method == "DELETE":
+        job = profiles.job(p.id)
+        if job:
+            job.cancel.set()
+            job.thread.join(30)
+        if request.GET.get("files") == "1":
+            run_dir = AceConfig.load().run_dir().resolve()
+            path = Path(p.path).resolve()
+            if not (p.owned and run_dir in path.parents):
+                raise ApiError("Only runs IGDE created can be deleted from disk.")
+            profiles.remove_owned(path)
+        p.delete()
+        return {"deleted": pid}
+    if request.method == "PATCH":
+        if (request.json.get("name") or "").strip():
+            p.name = request.json["name"].strip()
+            p.save(update_fields=["name"])
+    data = _profile_dict(p)
+    data["runLog"] = p.run_log
+    if data["exists"] and data["progress"] is None:
+        data["rows"] = profiles.item_rows(p.path)
+    elif data["exists"]:
+        data["rows"] = [{**i, "processed": False} for i in profiles.read_items(p.path)]
+    return {"profile": data}
+
+
+@api("PUT")
+def profile_items(request, pid):
+    p = Profile.objects.get(pk=pid)
+    if profiles.job(p.id):
+        raise ApiError("This profile is being processed.", 409)
+    items = request.json.get("items")
+    if not isinstance(items, list):
+        raise ApiError("'items' must be a list.")
+    clean = []
+    for i in items:
+        if not isinstance(i, dict):
+            raise ApiError("Each item must be an object.")
+        iid = i.get("id")
+        clean.append(
+            {
+                "id": _positive_int(iid, "id", 0, 2**31) if iid not in (None, "") else None,
+                "input": str(i.get("input") or ""),
+                "wf": 1 if i.get("wf", 1) else 0,
+                "comment": str(i.get("comment") or ""),
+            }
+        )
+    profiles.write_items(p.path, clean)
+    return {"profile": {**_profile_dict(p), "rows": profiles.item_rows(p.path)}}
+
+
+@api("POST")
+def profile_run(request, pid):
+    suite = Profile.objects.get(pk=pid)
+    g = _grammar_for(request)
+    run = profiles.start_run(suite, g, _n(request))
+    return {"profile": _profile_dict(run)}
+
+
+@api("POST")
+def profile_cancel(request, pid):
+    job = profiles.job(pid)
+    if job:
+        job.cancel.set()
+    return {"cancelling": bool(job)}
+
+
+@api("GET")
+def profile_item(request, pid, iid):
+    p = Profile.objects.get(pk=pid)
+    if profiles.job(p.id):
+        raise ApiError("This profile is being processed.", 409)
+    return profiles.item_results(p.path, iid)
+
+
+@api("GET")
+def profile_compare(request, pid, other):
+    a, b = Profile.objects.get(pk=pid), Profile.objects.get(pk=other)
+    if profiles.job(a.id) or profiles.job(b.id):
+        raise ApiError("Wait for the run to finish.", 409)
+    return profiles.compare(a.path, b.path)
 
 
 # ---------------------------------------------------------------------------
