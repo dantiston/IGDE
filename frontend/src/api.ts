@@ -10,8 +10,10 @@ import type {
   Status,
   TfsLookup,
   TfsParse,
-  AceStatus,
-  AceProcess,
+  Install,
+  Processor,
+  ProcessorProcess,
+  ProcessorStatus,
   Comparison,
   ItemResults,
   Profile,
@@ -67,13 +69,24 @@ const q = (params: Record<string, string | number | boolean | undefined>) =>
       .map(([k, v]) => [k, String(v)]),
   ).toString()
 
+export interface ProcessorInput {
+  name?: string
+  location?: string
+  options?: Record<string, number | string>
+  makeDefault?: boolean
+  force?: boolean
+}
+
 export const api = {
   status: () => request<Status>('GET', '/api/status'),
-  saveSettings: (s: Partial<Settings> & { force?: boolean }) =>
-    request<{ settings: Settings; ace: AceStatus }>('PUT', '/api/settings', s),
-  testAce: (aceRoot: string) => request<AceStatus>('POST', '/api/settings/test-ace', { aceRoot }),
-  detectAce: () =>
-    request<{ found: { source: 'env' | 'path' | 'homebrew'; path: string; version: string }[] }>('GET', '/api/settings/detect-ace'),
+  saveSettings: (s: Partial<Settings>) => request<{ settings: Settings }>('PUT', '/api/settings', s),
+
+  addProcessor: (p: ProcessorInput & { backend: string }) => request<{ processor: Processor }>('POST', '/api/processors', p),
+  updateProcessor: (id: number, p: ProcessorInput) => request<{ processor: Processor }>('PUT', `/api/processors/${id}`, p),
+  removeProcessor: (id: number) => request<{ deleted: number }>('DELETE', `/api/processors/${id}`),
+  checkProcessor: (backend: string, location: string) =>
+    request<ProcessorStatus>('POST', '/api/processors/check', { backend, location }),
+  detectProcessors: () => request<{ found: Install[] }>('GET', '/api/processors/detect'),
 
   fsRoots: () => request<{ roots: { name: string; path: string }[] }>('GET', '/api/fs/roots'),
   fsList: (path?: string, hidden = false) =>
@@ -85,17 +98,17 @@ export const api = {
       content,
       expectedMtime,
     }),
-  detectGrammar: (path: string) =>
-    request<{ kind: 'source' | 'image'; configPath?: string; imagePath?: string; name: string; grammarTop?: string }>(
+  detectGrammar: (path: string, processor?: number | null) =>
+    request<{ kind: 'source' | 'image'; backend: string; configPath?: string; imagePath?: string; name: string; grammarTop?: string }>(
       'GET',
-      `/api/fs/detect-grammar?${q({ path })}`,
+      `/api/fs/detect-grammar?${q({ path, processor: processor ?? undefined })}`,
     ),
 
   grammars: () => request<{ grammars: Grammar[] }>('GET', '/api/grammars'),
-  addGrammar: (g: { name?: string; configPath?: string; imagePath?: string; compile?: boolean }) =>
+  addGrammar: (g: { name?: string; configPath?: string; imagePath?: string; compile?: boolean; processor?: number | null }) =>
     request<{ grammar: Grammar; compileError?: string }>('POST', '/api/grammars', g),
   grammar: (id: number) => request<{ grammar: Grammar }>('GET', `/api/grammars/${id}`),
-  updateGrammar: (id: number, g: { name?: string; imagePath?: string }) =>
+  updateGrammar: (id: number, g: { name?: string; imagePath?: string; processor?: number | null }) =>
     request<{ grammar: Grammar }>('PATCH', `/api/grammars/${id}`, g),
   removeGrammar: (id: number) => request<{ deleted: number }>('DELETE', `/api/grammars/${id}`),
   activateGrammar: (id: number) => request<{ activeGrammar: Grammar }>('POST', `/api/grammars/${id}/activate`, {}),
@@ -111,8 +124,8 @@ export const api = {
   generate: (mrs: string, grammar?: number, n?: number) =>
     request<GenerateResponse>('POST', '/api/generate', { mrs, grammar, n }),
 
-  processes: () => request<{ processes: AceProcess[] }>('GET', '/api/processes'),
-  stopProcess: (key?: string) => request<{ processes: AceProcess[] }>('POST', '/api/processes/stop', { key }),
+  processes: () => request<{ processes: ProcessorProcess[] }>('GET', '/api/processes'),
+  stopProcess: (key?: string) => request<{ processes: ProcessorProcess[] }>('POST', '/api/processes/stop', { key }),
 
   profiles: () => request<{ profiles: Profile[] }>('GET', '/api/profiles'),
   createSuite: (name: string, text: string, directory?: string) =>

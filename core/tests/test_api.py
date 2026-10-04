@@ -1,4 +1,4 @@
-"""API tests that don't need a real ACE (a stub ``ace`` script stands in)."""
+"""API tests that don't need a real processor (a stub ``ace`` script stands in)."""
 
 import json
 import os
@@ -10,8 +10,8 @@ from unittest import mock
 
 from django.test import TestCase, override_settings
 
-from core.ace.manager import manager
-from core.models import AceConfig, Grammar
+from core.models import AppSettings, Grammar, Processor
+from core.processors.manager import manager
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -38,7 +38,7 @@ class ApiTestCase(TestCase):
         self.addCleanup(env.stop)
         # don't find a real Homebrew ACE on the machine running the tests
         self.brew_prefixes = []
-        brew = mock.patch("core.ace.environment.homebrew_prefixes", lambda: self.brew_prefixes)
+        brew = mock.patch("core.processors.ace.homebrew_prefixes", lambda: self.brew_prefixes)
         brew.start()
         self.addCleanup(brew.stop)
         os.environ.pop("ACE_ROOT", None)
@@ -48,6 +48,10 @@ class ApiTestCase(TestCase):
         if data is not None:
             return fn(url, json.dumps(data), content_type="application/json", **kw)
         return fn(url, **kw)
+
+    def ace(self):
+        """The ACE processor IGDE starts with, from the status endpoint."""
+        return self.call("GET", "/api/status").json()["processor"]
 
 
 class CsrfTests(ApiTestCase):
@@ -63,46 +67,61 @@ class CsrfTests(ApiTestCase):
             "/api/settings", json.dumps({"maxResults": 3}), content_type="application/json", HTTP_X_CSRFTOKEN=token
         )
         self.assertEqual(r.status_code, 200)
-        self.assertEqual(AceConfig.load().max_results, 3)
+        self.assertEqual(AppSettings.load().max_results, 3)
 
     def test_only_local_hosts_are_served(self):
         r = self.client.get("/api/status", HTTP_HOST="evil.example.com")
         self.assertEqual(r.status_code, 400)
 
 
-class SettingsTests(ApiTestCase):
+class ProcessorTests(ApiTestCase):
+    def check(self, location, backend="ace"):
+        return self.call("POST", "/api/processors/check", {"backend": backend, "location": str(location)}).json()
+
     def test_unconfigured(self):
         data = self.call("GET", "/api/status").json()
-        self.assertFalse(data["ace"]["ok"])
-        self.assertIn("ACE_ROOT", data["ace"]["error"])
+        # IGDE starts with one processor per backend, found automatically
+        self.assertEqual([(p["name"], p["backend"], p["location"], p["isDefault"]) for p in data["processors"]], [("ACE", "ace", "", True)])
+        self.assertEqual(data["processor"]["id"], data["processors"][0]["id"])
+        self.assertFalse(data["processor"]["status"]["ok"])
+        self.assertIn("ACE_ROOT", data["processor"]["status"]["error"])
+        backend = data["backends"][0]
+        self.assertEqual((backend["key"], backend["locationLabel"]), ("ace", "ACE_ROOT"))
+        self.assertEqual([o["key"] for o in backend["options"]], ["maxChartMegabytes", "maxUnpackMegabytes"])
+        self.assertEqual(data["processor"]["options"], {"maxChartMegabytes": 1200, "maxUnpackMegabytes": 1500})
 
-    def test_ace_root_directory_binary_and_bin(self):
+    def test_location_directory_binary_and_bin(self):
         make_fake_ace(self.tmp)
         (self.tmp / "prefix" / "bin").mkdir(parents=True)
         make_fake_ace(self.tmp / "prefix" / "bin", "0.9.31")
         for root, version in ((self.tmp, "0.9.34"), (self.tmp / "ace", "0.9.34"), (self.tmp / "prefix", "0.9.31")):
-            r = self.call("POST", "/api/settings/test-ace", {"aceRoot": str(root)}).json()
+            r = self.check(root)
             self.assertTrue(r["ok"], r)
             self.assertEqual(r["version"], version)
 
-    def test_save_validates_ace_root(self):
-        r = self.call("PUT", "/api/settings", {"aceRoot": str(self.tmp / "missing")})
+    def test_save_validates_location(self):
+        pid = self.ace()["id"]
+        r = self.call("PUT", f"/api/processors/{pid}", {"location": str(self.tmp / "missing")})
         self.assertEqual(r.status_code, 400)
         self.assertIn("No executable 'ace'", r.json()["error"])
         make_fake_ace(self.tmp)
-        r = self.call("PUT", "/api/settings", {"aceRoot": str(self.tmp), "maxResults": 7})
-        self.assertEqual(r.status_code, 200)
-        self.assertEqual(r.json()["ace"]["source"], "settings")
-        self.assertEqual(AceConfig.load().max_results, 7)
+        r = self.call("PUT", f"/api/processors/{pid}", {"location": str(self.tmp), "options": {"maxChartMegabytes": 3000}})
+        self.assertEqual(r.status_code, 200, r.content)
+        p = r.json()["processor"]
+        self.assertEqual(p["status"]["source"], "settings")
+        self.assertEqual(p["options"], {"maxChartMegabytes": 3000, "maxUnpackMegabytes": 1500})
+        self.assertEqual(Processor.objects.get(pk=pid).options, {"maxChartMegabytes": 3000})
+        self.assertEqual(self.call("PUT", "/api/settings", {"maxResults": 7}).status_code, 200)
+        self.assertEqual(AppSettings.load().max_results, 7)
 
     def test_env_ace_root_and_path(self):
         make_fake_ace(self.tmp)
         with mock.patch.dict(os.environ, {"ACE_ROOT": str(self.tmp)}):
             manager.settings_changed()
-            self.assertEqual(self.call("GET", "/api/status").json()["ace"]["source"], "env")
+            self.assertEqual(self.ace()["status"]["source"], "env")
         with mock.patch.dict(os.environ, {"PATH": str(self.tmp)}):
             manager.settings_changed()
-            self.assertEqual(self.call("GET", "/api/status").json()["ace"]["source"], "path")
+            self.assertEqual(self.ace()["status"]["source"], "path")
 
     def test_homebrew(self):
         prefix = self.tmp / "homebrew"
@@ -113,33 +132,73 @@ class SettingsTests(ApiTestCase):
         make_fake_ace(prefix / "opt" / "ace@0.9.33" / "bin", "0.9.33")
         self.brew_prefixes = [prefix]
         # versioned (keg-only) formulas are found, newest first
-        st = self.call("GET", "/api/status").json()["ace"]
+        st = self.ace()["status"]
         self.assertEqual((st["ok"], st["source"], st["version"]), (True, "homebrew", "0.9.33"))
-        found = self.call("GET", "/api/settings/detect-ace").json()["found"]
-        self.assertEqual([f["version"] for f in found], ["0.9.33", "0.9.31"])
+        found = self.call("GET", "/api/processors/detect").json()["found"]
+        self.assertEqual([(f["backend"], f["version"]) for f in found], [("ace", "0.9.33"), ("ace", "0.9.31")])
         # the current formula links bin/ace and wins
         make_fake_ace(prefix / "bin", "0.9.34")
         manager.settings_changed()
-        self.assertEqual(self.call("GET", "/api/status").json()["ace"]["version"], "0.9.34")
+        self.assertEqual(self.ace()["status"]["version"], "0.9.34")
 
     def test_missing_ace_is_noticed_once_installed(self):
-        self.assertFalse(self.call("GET", "/api/status").json()["ace"]["ok"])
+        self.assertFalse(self.ace()["status"]["ok"])
         self.brew_prefixes = [self.tmp]
         (self.tmp / "bin").mkdir()
         make_fake_ace(self.tmp / "bin")
-        self.assertTrue(self.call("GET", "/api/status").json()["ace"]["ok"])
+        self.assertTrue(self.ace()["status"]["ok"])
 
     def test_rejects_bad_values(self):
+        pid = self.ace()["id"]
         self.assertEqual(self.call("PUT", "/api/settings", {"maxResults": 0}).status_code, 400)
-        self.assertEqual(self.call("PUT", "/api/settings", {"aceRoot": "relative/path"}).status_code, 400)
+        self.assertEqual(self.call("PUT", f"/api/processors/{pid}", {"location": "relative/path"}).status_code, 400)
+        r = self.call("PUT", f"/api/processors/{pid}", {"options": {"maxChartMegabytes": 1}})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Chart memory", r.json()["error"])
+        r = self.call("POST", "/api/processors", {"backend": "nope"})
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("Unknown processor type", r.json()["error"])
+        self.assertEqual(self.call("PUT", "/api/processors/999", {}).status_code, 404)
 
     def test_not_ace(self):
         exe = self.tmp / "ace"
         exe.write_text("#!/bin/sh\necho hello\n")
         exe.chmod(0o755)
-        r = self.call("POST", "/api/settings/test-ace", {"aceRoot": str(exe)}).json()
+        r = self.check(exe)
         self.assertFalse(r["ok"])
         self.assertIn("does not look like ACE", r["error"])
+
+    def test_several_processors(self):
+        first = self.ace()
+        (self.tmp / "old").mkdir()
+        make_fake_ace(self.tmp / "old", "0.9.31")
+        make_fake_ace(self.tmp, "0.9.34")
+        self.call("PUT", f"/api/processors/{first['id']}", {"location": str(self.tmp)})
+        r = self.call("POST", "/api/processors", {"backend": "ace", "name": "ACE 0.9.31", "location": str(self.tmp / "old")})
+        old = r.json()["processor"]
+        self.assertEqual((old["name"], old["isDefault"], old["status"]["version"]), ("ACE 0.9.31", False, "0.9.31"))
+
+        # a grammar can use a processor other than the default
+        image = self.tmp / "g.dat"
+        image.write_bytes(b"\x00")
+        g = self.call("POST", "/api/grammars", {"imagePath": str(image)}).json()["grammar"]
+        self.assertIsNone(g["processor"])
+        self.assertEqual(self.ace()["status"]["version"], "0.9.34")
+        g = self.call("PATCH", f"/api/grammars/{g['id']}", {"processor": old["id"]}).json()["grammar"]
+        self.assertEqual(g["processor"], old["id"])
+        # the status reports the active grammar's processor
+        self.assertEqual(self.ace()["status"]["version"], "0.9.31")
+
+        # change the default
+        self.call("PUT", "/api/settings", {"defaultProcessor": old["id"]})
+        data = self.call("GET", "/api/status").json()
+        self.assertEqual({p["name"]: p["isDefault"] for p in data["processors"]}, {"ACE": False, "ACE 0.9.31": True})
+
+        # removing a processor: its grammars fall back to the default
+        self.call("PUT", "/api/settings", {"defaultProcessor": first["id"]})
+        self.assertEqual(self.call("DELETE", f"/api/processors/{old['id']}").status_code, 200)
+        self.assertIsNone(Grammar.objects.get(pk=g["id"]).processor)
+        self.assertEqual(self.ace()["status"]["version"], "0.9.34")
 
 
 class FilesystemTests(ApiTestCase):
@@ -209,7 +268,7 @@ class GrammarTests(ApiTestCase):
         self.assertEqual(g["imagePath"], str(self.tmp / "home" / "grammars" / "tiniest.dat"))
         self.assertEqual(g["rootDir"], str(self.grammar_dir))
         # the first grammar becomes the active one
-        self.assertEqual(AceConfig.load().active_grammar_id, g["id"])
+        self.assertEqual(AppSettings.load().active_grammar_id, g["id"])
         # a second registration of the same grammar gets its own image
         g2 = self.call("POST", "/api/grammars", {"configPath": str(self.grammar_dir)}).json()["grammar"]
         self.assertTrue(g2["imagePath"].endswith("tiniest-2.dat"))
@@ -224,18 +283,18 @@ class GrammarTests(ApiTestCase):
         self.assertEqual(self.call("POST", f"/api/grammars/{g['id']}/compile", {}).status_code, 503)
         other = Grammar.objects.create(name="x", image_path=str(image))
         self.call("POST", f"/api/grammars/{other.id}/activate", {})
-        self.assertEqual(AceConfig.load().active_grammar_id, other.id)
+        self.assertEqual(AppSettings.load().active_grammar_id, other.id)
         self.assertEqual(self.call("DELETE", f"/api/grammars/{other.id}").status_code, 200)
-        self.assertIsNone(AceConfig.load().active_grammar_id)
+        self.assertIsNone(AppSettings.load().active_grammar_id)
         self.assertTrue(image.exists())  # removing a grammar never deletes files
         self.assertEqual(self.call("POST", "/api/grammars", {"imagePath": str(self.tmp / "nope.dat")}).status_code, 404)
 
-    def test_processing_needs_ace_and_grammar(self):
+    def test_processing_needs_a_processor_and_grammar(self):
         self.assertEqual(self.call("POST", "/api/parse", {"sentence": "n1 iv"}).status_code, 409)
         g = Grammar.objects.create(name="t", image_path=str(self.tmp / "missing.dat"))
         r = self.call("POST", "/api/parse", {"sentence": "n1 iv", "grammar": g.id})
         self.assertEqual(r.status_code, 503)
-        self.assertTrue(r.json()["ace"])
+        self.assertTrue(r.json()["processor"])
         r = self.call("POST", "/api/generate", {"mrs": "[ not an mrs", "grammar": g.id})
         self.assertEqual(r.status_code, 400)
         self.assertIn("Could not read the MRS", r.json()["error"])

@@ -18,10 +18,11 @@ from django.views.decorators.http import require_http_methods
 from delphin import tsdb as delphin_tsdb
 
 from . import fs, profiles
-from .ace import environment, results
-from .ace.lui_session import LuiError
-from .ace.manager import AceUnavailable, manager
-from .models import AceConfig, Grammar, Profile
+from .models import AppSettings, Grammar, Processor, Profile
+from .processors import registry, results
+from .processors.base import ProcessorUnavailable
+from .processors.lui_session import LuiError
+from .processors.manager import manager
 
 log = logging.getLogger(__name__)
 
@@ -56,12 +57,14 @@ def api(*methods):
                 return JsonResponse({"error": str(e), **e.extra}, status=e.status)
             except fs.FsError as e:
                 return JsonResponse({"error": str(e)}, status=e.status)
-            except AceUnavailable as e:
-                return JsonResponse({"error": str(e), "ace": True}, status=503)
+            except ProcessorUnavailable as e:
+                return JsonResponse({"error": str(e), "processor": True}, status=503)
             except LuiError as e:
-                return JsonResponse({"error": str(e), "ace": True}, status=502)
+                return JsonResponse({"error": str(e), "processor": True}, status=502)
             except Grammar.DoesNotExist:
                 return JsonResponse({"error": "No such grammar."}, status=404)
+            except Processor.DoesNotExist:
+                return JsonResponse({"error": "No such processor."}, status=404)
             except Profile.DoesNotExist:
                 return JsonResponse({"error": "No such test suite or profile."}, status=404)
             except profiles.ProfileError as e:
@@ -104,41 +107,57 @@ def _grammar_dict(g: Grammar):
     return g.to_dict()
 
 
+def _processor_dict(p: Processor, cfg: AppSettings | None = None):
+    cfg = cfg or AppSettings.load()
+    default = cfg.processor()
+    return {
+        **p.to_dict(),
+        "isDefault": default is not None and default.id == p.id,
+        "grammars": p.grammars.count(),
+        "status": manager.status(p).to_dict(),
+    }
+
+
 @ensure_csrf_cookie
 @api("GET")
 def status(request):
-    cfg = AceConfig.load()
+    cfg = AppSettings.load()
+    # the processor the workbench uses: the active grammar's
+    current = cfg.active_grammar.effective_processor() if cfg.active_grammar else cfg.processor()
     return {
-        "ace": manager.status(cfg).to_dict(),
+        "processor": _processor_dict(current, cfg) if current else None,
+        "processors": [_processor_dict(p, cfg) for p in Processor.objects.all()],
+        "backends": [b.to_dict() for b in registry.all_backends()],
         "settings": cfg.to_dict(),
         "activeGrammar": _grammar_dict(cfg.active_grammar) if cfg.active_grammar else None,
         "grammars": [_grammar_dict(g) for g in Grammar.objects.all()],
         "processes": manager.processes(),
         "igdeHome": str(settings.IGDE_HOME),
-        "envAceRoot": os.environ.get("ACE_ROOT"),
     }
 
 
 SETTING_FIELDS = {
-    "aceRoot": ("ace_root", str),
     "maxResults": ("max_results", int),
     "timeoutSeconds": ("timeout_seconds", int),
-    "maxChartMegabytes": ("max_chart_megabytes", int),
-    "maxUnpackMegabytes": ("max_unpack_megabytes", int),
     "grammarImageDir": ("grammar_image_dir", str),
     "profilesDir": ("profiles_dir", str),
 }
 SETTING_LIMITS = {
     "max_results": (1, 10000),
     "timeout_seconds": (1, 86400),
-    "max_chart_megabytes": (10, 1_000_000),
-    "max_unpack_megabytes": (10, 1_000_000),
 }
+
+
+def _abs_path_or_empty(value, key):
+    value = (value or "").strip()
+    if value and not Path(value).expanduser().is_absolute():
+        raise ApiError(f"'{key}' must be an absolute path.")
+    return value
 
 
 @api("GET", "PUT")
 def settings_view(request):
-    cfg = AceConfig.load()
+    cfg = AppSettings.load()
     if request.method == "PUT":
         for key, (attr, typ) in SETTING_FIELDS.items():
             if key not in request.json:
@@ -147,29 +166,100 @@ def settings_view(request):
             if typ is int:
                 value = _positive_int(value, key, *SETTING_LIMITS[attr])
             else:
-                value = (value or "").strip()
-                if value and not Path(value).expanduser().is_absolute():
-                    raise ApiError(f"'{key}' must be an absolute path.")
+                value = _abs_path_or_empty(value, key)
             setattr(cfg, attr, value)
-        if cfg.ace_root:
-            st = environment.check(cfg.ace_root)
-            if not st.ok and not request.json.get("force"):
-                raise ApiError(st.error, ace=st.to_dict())
+        if "defaultProcessor" in request.json:
+            pid = request.json["defaultProcessor"]
+            cfg.default_processor = Processor.objects.get(pk=int(pid)) if pid not in (None, "") else None
         cfg.save()
         manager.settings_changed()
-    return {"settings": cfg.to_dict(), "ace": manager.status(cfg).to_dict()}
+    return {"settings": cfg.to_dict()}
 
 
-@api("GET")
-def detect_ace(request):
-    """ACE installs found on $ACE_ROOT, $PATH and in Homebrew."""
-    return {"found": environment.detect()}
+# ---------------------------------------------------------------------------
+# Processors
+
+
+def _backend(key):
+    try:
+        return registry.get(str(key or ""))
+    except KeyError as e:
+        raise ApiError(str(e.args[0])) from e
+
+
+def _apply_processor(p: Processor, data: dict, creating=False):
+    """Validate and apply the fields in *data* to *p* (unsaved)."""
+    if creating:
+        p.backend = _backend(data.get("backend")).key
+    backend = _backend(p.backend)
+    if "name" in data or creating:
+        p.name = (data.get("name") or "").strip() or p.name or backend.label
+    if "location" in data:
+        p.location = _abs_path_or_empty(data["location"], "location")
+    if "options" in data:
+        if not isinstance(data["options"], dict):
+            raise ApiError("'options' must be an object.")
+        try:
+            p.options = backend.clean_options(data["options"], p.options)
+        except ValueError as e:
+            raise ApiError(str(e)) from e
+    if p.location and ("location" in data) and not data.get("force"):
+        st = backend.check(p.location)
+        if not st.ok:
+            raise ApiError(st.error, check=st.to_dict())
+
+
+@api("GET", "POST")
+def processor_list(request):
+    if request.method == "POST":
+        p = Processor()
+        _apply_processor(p, request.json, creating=True)
+        p.save()
+        cfg = AppSettings.load()
+        if cfg.default_processor_id is None or request.json.get("makeDefault"):
+            cfg.default_processor = p
+            cfg.save(update_fields=["default_processor"])
+        return {"processor": _processor_dict(p)}
+    return {"processors": [_processor_dict(p) for p in Processor.objects.all()]}
+
+
+@api("GET", "PUT", "DELETE")
+def processor_detail(request, pid):
+    p = Processor.objects.get(pk=pid)
+    if request.method == "DELETE":
+        for g in p.grammars.all():
+            manager.stop_grammar(g.id)
+        p.delete()  # its grammars fall back to the default processor
+        manager.settings_changed()
+        return {"deleted": pid}
+    if request.method == "PUT":
+        _apply_processor(p, request.json)
+        p.save()
+        if request.json.get("makeDefault"):
+            cfg = AppSettings.load()
+            cfg.default_processor = p
+            cfg.save(update_fields=["default_processor"])
+        manager.settings_changed()
+    return {"processor": _processor_dict(p)}
 
 
 @api("POST")
-def test_ace(request):
-    """Validate an ACE_ROOT without saving it."""
-    return environment.check((request.json.get("aceRoot") or "").strip()).to_dict()
+def processor_check(request):
+    """Validate a processor location without saving it."""
+    backend = _backend(request.json.get("backend"))
+    return backend.check(_abs_path_or_empty(request.json.get("location"), "location")).to_dict()
+
+
+@api("GET")
+def processor_detect(request):
+    """Processor installs found on this machine, for every backend."""
+    return {
+        "found": [
+            {"backend": b.key, "backendLabel": b.label, **i.to_dict()}
+            for b in registry.all_backends()
+            for i in b.detect()
+        ]
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -198,7 +288,18 @@ def fs_file(request):
 
 @api("GET")
 def fs_detect_grammar(request):
-    return fs.find_grammar_config(request.GET.get("path", ""))
+    return fs.find_grammar_config(request.GET.get("path", ""), _preferred_backend(request.GET.get("processor")))
+
+
+def _preferred_backend(processor_id):
+    if processor_id not in (None, ""):
+        return Processor.objects.get(pk=int(processor_id)).backend
+    default = AppSettings.load().processor()
+    return default.backend if default else None
+
+
+def _processor_or_none(value):
+    return Processor.objects.get(pk=int(value)) if value not in (None, "") else None
 
 
 # ---------------------------------------------------------------------------
@@ -213,21 +314,26 @@ def _slug(name):
 def grammars(request):
     if request.method == "GET":
         return {"grammars": [_grammar_dict(g) for g in Grammar.objects.all()]}
-    cfg = AceConfig.load()
+    cfg = AppSettings.load()
     config_path = (request.json.get("configPath") or "").strip()
     image_path = (request.json.get("imagePath") or "").strip()
     name = (request.json.get("name") or "").strip()
+    processor = _processor_or_none(request.json.get("processor"))
     if config_path:
-        info = fs.find_grammar_config(config_path)
+        info = fs.find_grammar_config(config_path, _preferred_backend(processor.id if processor else None))
         if info["kind"] != "source":
-            raise ApiError(f"{config_path} is not an ACE config file.")
+            raise ApiError(f"{config_path} is not a grammar configuration file.")
         config_path = info["configPath"]
         name = name or info["name"]
+        if processor is None and (cfg.processor() is None or cfg.processor().backend != info["backend"]):
+            # run it with a processor that reads it
+            processor = Processor.objects.filter(backend=info["backend"]).first()
         if not image_path:
-            image_path = str(cfg.image_dir() / f"{_slug(name)}.dat")
+            suffix = registry.get(info["backend"]).image_suffix
+            image_path = str(cfg.image_dir() / f"{_slug(name)}{suffix}")
             n = 2
             while Grammar.objects.filter(image_path=image_path).exists():
-                image_path = str(cfg.image_dir() / f"{_slug(name)}-{n}.dat")
+                image_path = str(cfg.image_dir() / f"{_slug(name)}-{n}{suffix}")
                 n += 1
     elif image_path:
         p = fs.resolve(image_path)
@@ -236,17 +342,17 @@ def grammars(request):
         image_path = str(p)
         name = name or p.stem
     else:
-        raise ApiError("Provide a config.tdl (configPath) or a compiled grammar image (imagePath).")
+        raise ApiError("Provide a grammar configuration file (configPath) or a compiled grammar image (imagePath).")
     if not Path(image_path).is_absolute():
         raise ApiError("'imagePath' must be an absolute path.")
-    g = Grammar.objects.create(name=name, config_path=config_path, image_path=image_path)
+    g = Grammar.objects.create(name=name, config_path=config_path, image_path=image_path, processor=processor)
     if cfg.active_grammar_id is None:
         cfg.active_grammar = g
         cfg.save(update_fields=["active_grammar"])
     if request.json.get("compile") and g.is_source:
         try:
             manager.compile(g)
-        except AceUnavailable as e:
+        except ProcessorUnavailable as e:
             return {"grammar": _grammar_dict(g), "compileError": str(e)}
     return {"grammar": _grammar_dict(g)}
 
@@ -267,6 +373,9 @@ def grammar_detail(request, gid):
                 raise ApiError("'imagePath' must be an absolute path.")
             manager.stop_grammar(g.id)
             g.image_path = p
+        if "processor" in request.json:
+            manager.stop_grammar(g.id)
+            g.processor = _processor_or_none(request.json["processor"])
         g.save()
     data = _grammar_dict(g)
     data["compileLog"] = g.compile_log
@@ -276,7 +385,7 @@ def grammar_detail(request, gid):
 @api("POST")
 def grammar_activate(request, gid):
     g = Grammar.objects.get(pk=gid)
-    cfg = AceConfig.load()
+    cfg = AppSettings.load()
     cfg.active_grammar = g
     cfg.save(update_fields=["active_grammar"])
     return {"activeGrammar": _grammar_dict(g)}
@@ -307,7 +416,7 @@ def _grammar_for(request) -> Grammar:
     gid = request.json.get("grammar") or request.GET.get("grammar")
     if gid:
         return Grammar.objects.get(pk=int(gid))
-    cfg = AceConfig.load()
+    cfg = AppSettings.load()
     if not cfg.active_grammar:
         raise ApiError("No grammar selected. Add one in the Grammars tab.", 409)
     return cfg.active_grammar
@@ -337,8 +446,8 @@ def generate(request):
         raise ApiError(f"Could not read the MRS: {e}") from e
     g = _grammar_for(request)
     # Send the MRS as written (on one line): re-encoding it with PyDelphin
-    # would normalize predicates, e.g. "_dog_n_rel" to _dog_n, which ACE
-    # doesn't recognize for grammars that use string predicates.
+    # would normalize predicates, e.g. "_dog_n_rel" to _dog_n, which
+    # processors don't recognize for grammars that use string predicates.
     one_line = re.sub(r"\s*\n\s*", " ", mrs_text.strip())
     response = manager.generate(g, one_line, _n(request))
     return {"grammar": g.id, **results.generate_response(response)}
@@ -360,11 +469,12 @@ def processes_stop(request):
 
 
 # ---------------------------------------------------------------------------
-# TFS browsing (ACE LUI mode)
+# TFS browsing (the processor's LUI mode)
 
 
 def _lui(request, require_session=True):
     g = _grammar_for(request)
+    manager.require(g, "tfs")
     if require_session:
         m = manager.lui_existing(g.id)
         session = request.json.get("session")
@@ -377,7 +487,8 @@ def _lui(request, require_session=True):
 
 
 def _definition_file(g, definition):
-    """ACE reports TDL locations relative to the directory it was compiled in."""
+    """Processors may report TDL locations relative to the directory the
+    grammar was compiled in."""
     if not definition:
         return definition
     f = Path(definition["file"])
@@ -397,7 +508,7 @@ def _definition_file(g, definition):
 def tfs_parse(request):
     sentence = str(_body(request, "sentence")).replace("\n", " ").strip()
     g, m = _lui(request, require_session=False)
-    cfg = AceConfig.load()
+    cfg = AppSettings.load()
     with m.lock:
         out = m.obj.parse(sentence, timeout=cfg.timeout_seconds + 60)
     for t in out["trees"]:
@@ -468,7 +579,7 @@ def _profile_dict(p: Profile, stats=True):
         p.save(update_fields=["run_status", "run_log"])
     d = p.to_dict()
     d["progress"] = job.to_dict() if job else None
-    # don't read a profile while ACE is still writing it
+    # don't read a profile while the processor is still writing it
     d["stats"] = profiles.stats_for(p) if stats and job is None else None
     return d
 
@@ -483,7 +594,7 @@ def profile_list(request):
         if not name:
             raise ApiError("Give the test suite a name.")
         directory = (request.json.get("directory") or "").strip()
-        base = fs.resolve(directory) if directory else AceConfig.load().run_dir().parent / "testsuites"
+        base = fs.resolve(directory) if directory else AppSettings.load().run_dir().parent / "testsuites"
         path = base / _slug(name)
         items = profiles.parse_item_lines(request.json.get("text") or "")
         if not items:
@@ -509,7 +620,7 @@ def profile_detail(request, pid):
             job.cancel.set()
             job.thread.join(30)
         if request.GET.get("files") == "1":
-            run_dir = AceConfig.load().run_dir().resolve()
+            run_dir = AppSettings.load().run_dir().resolve()
             path = Path(p.path).resolve()
             if not (p.owned and run_dir in path.parents):
                 raise ApiError("Only runs IGDE created can be deleted from disk.")

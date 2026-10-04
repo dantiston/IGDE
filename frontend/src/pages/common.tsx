@@ -6,7 +6,7 @@ export function GrammarRequired() {
   return (
     <div className="page">
       <div className="empty">
-        {status?.ace.ok ? (
+        {status?.processor?.status.ok ? (
           <>
             No grammar selected.{' '}
             <button type="button" className="primary" onClick={() => navigate('grammars')}>
@@ -15,9 +15,9 @@ export function GrammarRequired() {
           </>
         ) : (
           <>
-            ACE is not configured yet.{' '}
+            {status?.processor ? `${status.processor.name} is not available.` : 'No processor is configured yet.'}{' '}
             <button type="button" className="primary" onClick={() => navigate('settings')}>
-              Configure ACE
+              Configure a processor
             </button>
           </>
         )}
@@ -30,7 +30,7 @@ export function ResponseMessages({ r }: { r: { error: string | null; warnings: s
   if (!r.error && !r.warnings.length && !r.errors.length) return null
   return (
     <div className="messages">
-      {r.error && <div className="error">ACE: {r.error}</div>}
+      {r.error && <div className="error">{r.error}</div>}
       {r.errors.map((m, i) => (
         <div key={`e${i}`} className="error">
           {m}

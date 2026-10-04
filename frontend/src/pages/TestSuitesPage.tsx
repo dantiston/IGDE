@@ -3,7 +3,7 @@
  *
  * A test suite is a profile of test items (made here, or any existing
  * profile on disk, e.g. a grammar's gold profiles).  Running it with a
- * grammar makes a new profile (a "run") holding ACE's results, which can be
+ * grammar makes a new profile (a "run") holding the processor's results, which can be
  * inspected item by item and compared with another run or with gold.
  */
 import { Fragment, useCallback, useEffect, useMemo, useState } from 'react'
@@ -492,7 +492,7 @@ function ProfileView({ id, all, onChanged, onSelect }: { id: number; all: Profil
                 onChange={(e) => setN(e.target.value)}
                 placeholder={String(status?.settings.maxResults ?? 5)}
                 aria-label="Results per item"
-                title="Results to keep per item (ACE -n)"
+                title="Results to keep per item"
               />
               <button
                 type="button"

@@ -1,8 +1,8 @@
 """
 Django settings for IGDE.
 
-IGDE is a *local* tool: it browses the user's filesystem and launches ACE
-processes, so by default it only answers on loopback addresses and keeps
+IGDE is a *local* tool: it browses the user's filesystem and launches
+grammar processors (e.g. ACE), so by default it only answers on loopback addresses and keeps
 its state (database, secret key, compiled grammars) in a per-user data
 directory, ``$IGDE_HOME`` (default ``~/.igde``).
 """

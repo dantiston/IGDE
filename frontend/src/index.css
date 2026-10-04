@@ -340,17 +340,17 @@ button:focus-visible {
   align-items: center;
   color: var(--muted);
 }
-.ace-pill {
+.processor-pill {
   border-radius: 14px;
   font-size: 12px;
   padding: 3px 12px;
 }
-.ace-pill.ok {
+.processor-pill.ok {
   background: var(--ok-bg);
   color: var(--ok);
   border-color: transparent;
 }
-.ace-pill.bad {
+.processor-pill.bad {
   background: var(--danger-bg);
   color: var(--danger);
   border-color: transparent;
@@ -469,6 +469,23 @@ button:focus-visible {
 }
 .status-card.bad {
   background: var(--danger-bg);
+}
+.processor-card {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  margin: 10px 0;
+}
+.processor-card h3 {
+  margin: 0;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.processor-form {
+  border-top: 1px solid var(--border);
+  margin-top: 10px;
+  padding-top: 4px;
 }
 .status-title {
   font-weight: 700;

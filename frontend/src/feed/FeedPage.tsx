@@ -56,7 +56,7 @@ function Composer() {
       onChange={(e) => setN(e.target.value)}
       placeholder={String(status?.settings.maxResults ?? 5)}
       aria-label="Maximum results"
-      title="Maximum number of results (ACE -n)"
+      title="Maximum number of results per input"
     />
   )
 

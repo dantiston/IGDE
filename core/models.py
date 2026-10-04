@@ -4,17 +4,55 @@ from django.conf import settings
 from django.db import models
 
 
-class AceConfig(models.Model):
-    """Singleton holding how IGDE finds and drives the local ACE install."""
+class Processor(models.Model):
+    """A grammar processor IGDE can drive: a backend (see
+    ``core.processors.registry``), where it's installed, and its options."""
 
-    # Directory containing the ``ace`` binary (an unpacked ACE release, or
-    # e.g. /usr/local/bin), or the path to the binary itself.  Empty means
-    # "use $ACE_ROOT, then ``ace`` on $PATH".
-    ace_root = models.CharField(max_length=4096, blank=True, default="")
+    name = models.CharField(max_length=200)
+    backend = models.CharField(max_length=32)
+    # Where the processor is installed (backend-specific, e.g. an ACE_ROOT);
+    # empty means "find it automatically".
+    location = models.CharField(max_length=4096, blank=True, default="")
+    options = models.JSONField(default=dict, blank=True)
+    created = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["name", "id"]
+
+    def __str__(self):
+        return self.name
+
+    def get_backend(self):
+        from core.processors import registry
+
+        return registry.get(self.backend)
+
+    def to_dict(self):
+        try:
+            backend = self.get_backend()
+            options, label = backend.resolved_options(self.options), backend.label
+        except KeyError:
+            options, label = dict(self.options), self.backend
+        return {
+            "id": self.id,
+            "name": self.name,
+            "backend": self.backend,
+            "backendLabel": label,
+            "location": self.location,
+            "options": options,
+        }
+
+
+class AppSettings(models.Model):
+    """Singleton holding IGDE's settings."""
+
+    # the processor for grammars that don't name one
+    default_processor = models.ForeignKey(
+        Processor, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    # how many results to keep per input, and how long to spend on one
     max_results = models.PositiveIntegerField(default=5)
     timeout_seconds = models.PositiveIntegerField(default=60)
-    max_chart_megabytes = models.PositiveIntegerField(default=1200)
-    max_unpack_megabytes = models.PositiveIntegerField(default=1500)
     # Where compiled grammar images go by default.
     grammar_image_dir = models.CharField(max_length=4096, blank=True, default="")
     # Where test suite runs (processed [incr tsdb()] profiles) are written.
@@ -25,8 +63,22 @@ class AceConfig(models.Model):
 
     @classmethod
     def load(cls):
-        obj, _ = cls.objects.get_or_create(pk=1)
+        obj, created = cls.objects.get_or_create(pk=1)
+        if created and not Processor.objects.exists():
+            # Start with one processor per backend, each finding its
+            # installation automatically.
+            from core.processors import registry
+
+            for b in registry.all_backends():
+                p = Processor.objects.create(name=b.label, backend=b.key)
+                if obj.default_processor_id is None:
+                    obj.default_processor = p
+            obj.save(update_fields=["default_processor"])
         return obj
+
+    def processor(self) -> Processor | None:
+        """The default processor (the first one if none was chosen)."""
+        return self.default_processor or Processor.objects.first()
 
     def image_dir(self) -> Path:
         if self.grammar_image_dir:
@@ -39,12 +91,11 @@ class AceConfig(models.Model):
         return settings.IGDE_HOME / "profiles"
 
     def to_dict(self):
+        default = self.processor()
         return {
-            "aceRoot": self.ace_root,
+            "defaultProcessor": default.id if default else None,
             "maxResults": self.max_results,
             "timeoutSeconds": self.timeout_seconds,
-            "maxChartMegabytes": self.max_chart_megabytes,
-            "maxUnpackMegabytes": self.max_unpack_megabytes,
             "grammarImageDir": self.grammar_image_dir,
             "defaultGrammarImageDir": str(settings.IGDE_HOME / "grammars"),
             "profilesDir": self.profiles_dir,
@@ -56,9 +107,12 @@ class AceConfig(models.Model):
 class Grammar(models.Model):
     """A grammar on the user's machine that IGDE knows about.
 
-    Either a source grammar (``config_path`` points at an ACE config.tdl and
-    ``image_path`` is where IGDE compiles it to) or a precompiled grammar
-    image (``config_path`` empty, ``image_path`` points at the .dat file).
+    Either a source grammar (``config_path`` points at the processor's
+    grammar configuration, e.g. ACE's config.tdl, and ``image_path`` is
+    where IGDE compiles it to) or a precompiled grammar image
+    (``config_path`` empty, ``image_path`` points at the image).
+
+    ``processor`` is the processor that runs it; empty means the default.
     """
 
     COMPILE_IDLE = "idle"
@@ -73,6 +127,7 @@ class Grammar(models.Model):
     compile_status = models.CharField(max_length=16, default=COMPILE_IDLE)
     compile_log = models.TextField(blank=True, default="")
     compiled_at = models.DateTimeField(null=True, blank=True)
+    processor = models.ForeignKey(Processor, null=True, blank=True, on_delete=models.SET_NULL, related_name="grammars")
 
     class Meta:
         ordering = ["name", "id"]
@@ -84,22 +139,25 @@ class Grammar(models.Model):
     def is_source(self) -> bool:
         return bool(self.config_path)
 
+    def effective_processor(self) -> Processor | None:
+        return self.processor or AppSettings.load().processor()
+
+    def backend(self):
+        p = self.effective_processor()
+        try:
+            return p.get_backend() if p else None
+        except KeyError:
+            return None
+
     @property
     def root_dir(self) -> Path:
         """The directory to show in the grammar's file tree."""
+        b = self.backend()
         if self.config_path:
             cfg = Path(self.config_path)
-            # DELPH-IN convention: <grammar>/ace/config.tdl
-            if cfg.parent.name == "ace":
-                return cfg.parent.parent
-            return cfg.parent
+            return b.grammar_root(cfg) if b else cfg.parent
         image = Path(self.image_path)
-        # a precompiled image is often kept beside its grammar's directory
-        # (e.g. erg.dat next to erg/)
-        beside = image.parent / image.stem
-        if (beside / "ace" / "config.tdl").is_file() or (beside / "config.tdl").is_file():
-            return beside
-        return image.parent
+        return b.image_grammar_root(image) if b else image.parent
 
     def image_info(self):
         p = Path(self.image_path)
@@ -119,6 +177,7 @@ class Grammar(models.Model):
             "image": self.image_info(),
             "compileStatus": self.compile_status,
             "compiledAt": self.compiled_at.isoformat() if self.compiled_at else None,
+            "processor": self.processor_id,
         }
 
 

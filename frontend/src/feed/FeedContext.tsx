@@ -152,16 +152,16 @@ export function FeedProvider({ children }: { children: ReactNode }) {
       for (const fresh of [false, true]) {
         try {
           const lp = await luiParse(fresh)
-          // ACE ranks the same way in both modes; match on the derivation to be sure
+          // the processor ranks the same way in both modes; match on the derivation to be sure
           const tree =
             lp.trees.find((t) => t.signature?.join(' ') === result.signature.join(' ')) ?? lp.trees[resultIndex]
           const node = tree ? nodeAtPath(tree, path) : null
-          if (!node) throw new Error('Could not find this node in ACE’s chart.')
+          if (!node) throw new Error('Could not find this node in the processor’s chart.')
           const doc = await api.tfsNode(node.id, lp.session, item.grammarId)
           addAvm(g, `${label} · ${node.entity}`, `“${item.sentence}” #${resultIndex + 1}, edge ${node.eid}`, doc, doc.session)
           return
         } catch (e) {
-          // ACE's TFS session restarted since: parse again once
+          // the TFS session restarted since: parse again once
           if (!fresh && e instanceof ApiError && e.data.stale) continue
           notify((e as Error).message, 'error')
           return
@@ -235,7 +235,7 @@ export function FeedProvider({ children }: { children: ReactNode }) {
     const t = items.find((x) => x.id === unifyTarget?.itemId)
     if (!s || !t || s.kind !== 'avm' || t.kind !== 'avm' || !unifySource || !unifyTarget) return
     if (s.session !== t.session || s.grammarId !== t.grammarId) {
-      notify('These feature structures come from different ACE sessions; open them again to unify them.', 'error')
+      notify('These feature structures come from different processor sessions; open them again to unify them.', 'error')
       return
     }
     try {

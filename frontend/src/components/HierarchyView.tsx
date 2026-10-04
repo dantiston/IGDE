@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { HierarchyNode } from '../types'
 
-/** The type hierarchy around one type, as reported by ACE (all of its
+/** The type hierarchy around one type, as reported by the processor (all of its
  * ancestors and descendants).  Grammars use multiple inheritance, so rather
  * than unfolding the whole DAG from the top type (which repeats types many
  * times) we show two trees rooted at the focus type: supertypes going up,

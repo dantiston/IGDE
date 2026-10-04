@@ -7,16 +7,11 @@ can show and edit the user's grammar files in place.
 from __future__ import annotations
 
 import os
-import re
 import stat
 from pathlib import Path
 
 MAX_TEXT_BYTES = 5 * 1024 * 1024
 GRAMMAR_SOURCE_EXTS = {".tdl", ".rpp", ".vpm", ".mtr", ".tab", ".set", ".smi", ".txt", ".lsp", ".mem", ".dat"}
-
-# Grammar images written by ACE don't have a documented magic number, so we
-# recognise them by extension.
-IMAGE_EXTS = {".dat", ".grm", ".ace"}
 
 
 class FsError(Exception):
@@ -35,15 +30,14 @@ def resolve(path: str | None) -> Path:
 
 
 def classify(p: Path, is_dir: bool) -> str | None:
-    """A hint about what a filesystem entry is, grammar-wise."""
-    if is_dir:
-        if (p / "ace" / "config.tdl").is_file() or (p / "config.tdl").is_file():
-            return "grammar-dir"
-        return None
-    if p.name == "config.tdl" or (p.suffix == ".tdl" and p.parent.name == "ace" and "config" in p.stem):
-        return "config"
-    if p.suffix in IMAGE_EXTS:
-        return "image"
+    """A hint about what a filesystem entry is, grammar-wise: a grammar
+    directory, configuration or image (as far as any processor backend can
+    tell), or a grammar source file."""
+    from .processors import registry
+
+    hint = registry.classify(p, is_dir)
+    if hint or is_dir:
+        return hint
     if p.suffix in GRAMMAR_SOURCE_EXTS:
         return "source"
     return None
@@ -139,39 +133,25 @@ def write_text(path: str, content: str, expected_mtime: float | None) -> dict:
     return {"path": str(p), "size": st.st_size, "mtime": st.st_mtime}
 
 
-_GRAMMAR_TOP_RE = re.compile(r"^\s*grammar-top\s*:=\s*\"?([^\".\s]+(?:\.[^\".\s]+)*)\"?\s*\.", re.M)
+def find_grammar_config(path: str, prefer: str | None = None) -> dict:
+    """Given a directory, configuration file, or image, work out what grammar
+    is there, and for which processor backend (*prefer* is tried first)."""
+    from .processors import registry
 
-
-def find_grammar_config(path: str) -> dict:
-    """Given a directory, config file, or image, work out what grammar is there."""
     p = resolve(path)
-    if p.is_dir():
-        for cand in (p / "ace" / "config.tdl", p / "config.tdl"):
-            if cand.is_file():
-                return _describe_config(cand)
-        images = sorted(x for x in p.iterdir() if x.suffix in IMAGE_EXTS and x.is_file())
-        if images:
-            return {"kind": "image", "imagePath": str(images[0]), "name": images[0].stem}
-        raise FsError(f"No ACE config.tdl or grammar image found in {p}.", 404)
-    if not p.is_file():
+    if not p.exists():
         raise FsError(f"{p} does not exist.", 404)
-    if p.suffix == ".tdl":
-        return _describe_config(p)
-    return {"kind": "image", "imagePath": str(p), "name": p.stem}
-
-
-def _describe_config(cfg: Path) -> dict:
-    root = cfg.parent.parent if cfg.parent.name == "ace" else cfg.parent
-    text = cfg.read_text(encoding="utf-8", errors="replace")
-    if "grammar-top" not in text:
-        raise FsError(f"{cfg} does not look like an ACE config file (no grammar-top setting).")
-    m = _GRAMMAR_TOP_RE.search(text)
-    return {
-        "kind": "source",
-        "configPath": str(cfg),
-        "name": root.name,
-        "grammarTop": m.group(1) if m else None,
-    }
+    try:
+        found = registry.describe_grammar(p, prefer)
+    except ValueError as e:
+        raise FsError(str(e)) from e
+    if not found:
+        what = ", ".join(b.config_label for b in registry.all_backends())
+        if p.is_dir():
+            raise FsError(f"No grammar ({what} or grammar image) found in {p}.", 404)
+        raise FsError(f"{p} is not a grammar ({what} or grammar image).")
+    backend, info = found
+    return {**info.to_dict(), "backend": backend.key}
 
 
 SKIP_DIRS = {".git", ".svn", "__pycache__", "node_modules", "tsdb", "www"}
