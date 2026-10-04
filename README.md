@@ -17,12 +17,12 @@ and a [React](https://react.dev) app is the user interface.
 * **ACE settings**: point IGDE at your ACE install (`ACE_ROOT`), check its
   version, set processing limits (results, timeout, memory), and see and stop
   the ACE processes IGDE is running.
-* **Grammars**: register grammars stored on your machine, either a grammar's
-  ACE `config.tdl` (IGDE compiles it with ACE in the background and shows the
-  log) or a precompiled grammar image (`.dat`).  Switch the active grammar
-  from the header.
-* **Files**: browse the local disk or the active grammar's source files, view
-  and edit TDL with save conflict detection, and recompile after changes.
+* **Grammars**: an explorer of the grammars stored on your machine and
+  their files. Add a grammar by its ACE `config.tdl` or folder (IGDE compiles
+  it with ACE in the background and shows the log) or by a precompiled
+  image (`.dat`); expand it to browse and edit its TDL in the editor (with
+  save conflict detection), recompile after changes, and choose the active
+  grammar. A Disk tab opens any other file.
 * **Workbench**: one running feed. From the input bar at the top, parse a
   sentence, generate from an MRS (paste one, or pick any parse in the feed),
   or look up a type, lexical entry, rule or instance; each result is added to
@@ -75,7 +75,7 @@ Then open <http://127.0.0.1:8000/> and:
    Otherwise set `ACE_ROOT` to the directory containing the `ace` binary
    (e.g. an unpacked `ace-0.9.34/`) or to the binary itself, click *Test*,
    then *Save settings*.
-2. **Grammars → Add grammar…**: browse to a grammar directory (one with
+2. **Grammars → + Add grammar**: browse to a grammar directory (one with
    `ace/config.tdl` or `config.tdl`) or a compiled `.dat` image and click
    *Add*.  Source grammars are compiled into `~/.igde/grammars/`.
 3. Parse, generate, and browse.

@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { FeedProvider } from './feed/FeedContext'
 import { FeedPage } from './feed/FeedPage'
-import { FilesPage } from './pages/FilesPage'
 import { GrammarsPage } from './pages/GrammarsPage'
 import { SettingsPage } from './pages/SettingsPage'
 import { AppProvider, useApp } from './state'
@@ -32,11 +31,6 @@ const NAV: { page: Page; label: string; icon: ReactNode }[] = [
     page: 'grammars',
     label: 'Grammars',
     icon: icon(<path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2.5zM4 19.5A2 2 0 0 0 6 21h13M8 7h7M8 11h5" />),
-  },
-  {
-    page: 'files',
-    label: 'Files',
-    icon: icon(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />),
   },
   {
     page: 'settings',
@@ -192,7 +186,6 @@ function Shell() {
             <>
               {page === 'workbench' && <FeedPage />}
               {page === 'grammars' && <GrammarsPage />}
-              {page === 'files' && <FilesPage />}
               {page === 'settings' && <SettingsPage />}
             </>
           )}

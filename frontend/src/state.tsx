@@ -3,11 +3,11 @@ import type { ReactNode } from 'react'
 import { api } from './api'
 import type { Status } from './types'
 
-export const PAGES = ['workbench', 'grammars', 'files', 'settings'] as const
+export const PAGES = ['workbench', 'grammars', 'settings'] as const
 export type Page = (typeof PAGES)[number]
 
 /** One-shot hand-offs between pages, e.g. "open this file at this line". */
-export type Intent = { page: 'files'; path: string; line?: number }
+export type Intent = { page: 'grammars'; path: string; line?: number }
 
 export interface Toast {
   id: number
@@ -32,7 +32,8 @@ interface AppState {
 const Ctx = createContext<AppState | null>(null)
 
 function pageFromHash(): Page {
-  const h = window.location.hash.replace(/^#\/?/, '').split(/[?/]/)[0]
+  let h = window.location.hash.replace(/^#\/?/, '').split(/[?/]/)[0]
+  if (h === 'files') h = 'grammars' // files now live under each grammar
   return (PAGES as readonly string[]).includes(h) ? (h as Page) : 'workbench'
 }
 

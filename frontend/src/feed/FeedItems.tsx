@@ -200,7 +200,7 @@ function AvmCard({ item }: { item: ItemOf<'avm'> }) {
           <span className="definition grow">
             <code>{doc.definition.tdl}</code>{' '}
             {doc.definition.path ? (
-              <button type="button" className="link small" onClick={() => navigate('files', { page: 'files', path: doc.definition!.path!, line: doc.definition!.line })}>
+              <button type="button" className="link small" onClick={() => navigate('grammars', { page: 'grammars', path: doc.definition!.path!, line: doc.definition!.line })}>
                 {doc.definition.file}:{doc.definition.line}
               </button>
             ) : (
