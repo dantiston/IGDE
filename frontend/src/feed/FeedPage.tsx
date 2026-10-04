@@ -224,22 +224,28 @@ export function FeedPage() {
   const { status } = useApp()
   const { items, lastAdded, clear } = useFeed()
   const seen = useRef<number | null>(null)
+  // newest first, right under the composer
+  const newestFirst = useMemo(() => [...items].reverse(), [items])
 
-  // Bring each new entry into view, like a console.
+  // A new entry appears at the top of the feed: bring it into view.
   useEffect(() => {
     if (lastAdded === null || lastAdded === seen.current) return
     seen.current = lastAdded
-    document.getElementById(`feed-item-${lastAdded}`)?.scrollIntoView?.({ behavior: 'smooth', block: 'start' })
-  }, [lastAdded, items])
+    document.querySelector('.app-main')?.scrollTo?.({ top: 0, behavior: 'smooth' })
+  }, [lastAdded])
 
   if (status && !status.activeGrammar) return <GrammarRequired />
 
   return (
     <div className="page feed-page">
+      <div className="composer-dock">
+        <Composer />
+        <UnifyBar />
+      </div>
       {items.length > 0 && (
         <div className="row feed-tools">
           <span className="muted small grow">
-            {items.length} item{items.length === 1 ? '' : 's'}
+            {items.length} item{items.length === 1 ? '' : 's'}, newest first
           </span>
           <button type="button" className="small" onClick={clear}>
             Clear feed
@@ -252,19 +258,15 @@ export function FeedPage() {
             Parse a sentence, generate from an MRS, or look up a type, lexical entry or rule of <strong>{status?.activeGrammar?.name}</strong>.
           </p>
           <p className="small">
-            Results are added to this feed. Click any node of a parse tree to add its feature structure; click features in two feature
-            structures to unify them.
+            Results are added to the top of this feed. Click any node of a parse tree to add its feature structure; click features in two
+            feature structures to unify them.
           </p>
         </div>
       )}
       <div className="feed" aria-live="polite">
-        {items.map((it) => (
+        {newestFirst.map((it) => (
           <FeedItemView key={it.id} item={it} />
         ))}
-      </div>
-      <div className="composer-dock">
-        <UnifyBar />
-        <Composer />
       </div>
     </div>
   )

@@ -1,3 +1,5 @@
+import { useEffect, useState } from 'react'
+import type { ReactNode } from 'react'
 import { FeedProvider } from './feed/FeedContext'
 import { FeedPage } from './feed/FeedPage'
 import { FilesPage } from './pages/FilesPage'
@@ -6,12 +8,111 @@ import { SettingsPage } from './pages/SettingsPage'
 import { AppProvider, useApp } from './state'
 import type { Page } from './state'
 
-const NAV: { page: Page; label: string }[] = [
-  { page: 'workbench', label: 'Workbench' },
-  { page: 'grammars', label: 'Grammars' },
-  { page: 'files', label: 'Files' },
-  { page: 'settings', label: 'ACE Settings' },
+const icon = (d: ReactNode) => (
+  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    {d}
+  </svg>
+)
+
+const NAV: { page: Page; label: string; icon: ReactNode }[] = [
+  {
+    page: 'workbench',
+    label: 'Workbench',
+    // a parse tree
+    icon: icon(
+      <>
+        <circle cx="12" cy="5" r="2" />
+        <circle cx="6" cy="18" r="2" />
+        <circle cx="18" cy="18" r="2" />
+        <path d="M12 7v4M12 11l-5 5M12 11l5 5" />
+      </>,
+    ),
+  },
+  {
+    page: 'grammars',
+    label: 'Grammars',
+    icon: icon(<path d="M4 19.5V5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2.5zM4 19.5A2 2 0 0 0 6 21h13M8 7h7M8 11h5" />),
+  },
+  {
+    page: 'files',
+    label: 'Files',
+    icon: icon(<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />),
+  },
+  {
+    page: 'settings',
+    label: 'ACE Settings',
+    icon: icon(
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" />
+      </>,
+    ),
+  },
 ]
+
+const SIDEBAR_KEY = 'igde.sidebar.collapsed'
+
+/** IDE-style navigation: collapses to an icon strip (Ctrl/⌘+B). */
+function Sidebar() {
+  const { page, navigate } = useApp()
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_KEY) === '1'
+    } catch {
+      return false
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_KEY, collapsed ? '1' : '0')
+    } catch {
+      /* storage unavailable */
+    }
+  }, [collapsed])
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        setCollapsed((c) => !c)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+  return (
+    <nav className={`sidebar${collapsed ? ' collapsed' : ''}`} aria-label="Main">
+      {NAV.map((n) => (
+        <a
+          key={n.page}
+          href={`#/${n.page}`}
+          className={page === n.page ? 'on' : ''}
+          aria-current={page === n.page ? 'page' : undefined}
+          aria-label={n.label}
+          title={collapsed ? n.label : undefined}
+          onClick={(e) => {
+            e.preventDefault()
+            navigate(n.page)
+          }}
+        >
+          <span className="side-icon">{n.icon}</span>
+          {!collapsed && <span className="side-label">{n.label}</span>}
+        </a>
+      ))}
+      <span className="grow" />
+      <button
+        type="button"
+        className="side-toggle ghost"
+        onClick={() => setCollapsed(!collapsed)}
+        aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        aria-expanded={!collapsed}
+        title={`${collapsed ? 'Expand' : 'Collapse'} sidebar (Ctrl+B)`}
+      >
+        {collapsed ? '»' : '«'}
+        {!collapsed && <span className="side-label">Collapse</span>}
+      </button>
+    </nav>
+  )
+}
 
 function Header() {
   const { status, statusError, setActiveGrammar, navigate, notify } = useApp()
@@ -76,40 +177,27 @@ function Toasts() {
 }
 
 function Shell() {
-  const { page, navigate, statusError, status } = useApp()
+  const { page, statusError, status } = useApp()
   return (
     <div className="app">
       <Header />
-      <nav className="app-nav" aria-label="Main">
-        {NAV.map((n) => (
-          <a
-            key={n.page}
-            href={`#/${n.page}`}
-            className={page === n.page ? 'on' : ''}
-            aria-current={page === n.page ? 'page' : undefined}
-            onClick={(e) => {
-              e.preventDefault()
-              navigate(n.page)
-            }}
-          >
-            {n.label}
-          </a>
-        ))}
-      </nav>
-      <main className="app-main">
-        {statusError && !status ? (
-          <div className="page">
-            <div className="error">{statusError}</div>
-          </div>
-        ) : (
-          <>
-            {page === 'workbench' && <FeedPage />}
-            {page === 'grammars' && <GrammarsPage />}
-            {page === 'files' && <FilesPage />}
-            {page === 'settings' && <SettingsPage />}
-          </>
-        )}
-      </main>
+      <div className="app-body">
+        <Sidebar />
+        <main className="app-main">
+          {statusError && !status ? (
+            <div className="page">
+              <div className="error">{statusError}</div>
+            </div>
+          ) : (
+            <>
+              {page === 'workbench' && <FeedPage />}
+              {page === 'grammars' && <GrammarsPage />}
+              {page === 'files' && <FilesPage />}
+              {page === 'settings' && <SettingsPage />}
+            </>
+          )}
+        </main>
+      </div>
       <Toasts />
     </div>
   )

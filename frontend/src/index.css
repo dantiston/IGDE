@@ -247,10 +247,67 @@ button:focus-visible {
 }
 
 /* ---- layout ---- */
+/* IDE layout: header and sidebar stay put, only the main pane scrolls */
 .app {
-  min-height: 100vh;
-  display: grid;
-  grid-template-rows: auto auto 1fr;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+.app-body {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+.sidebar {
+  display: flex;
+  overflow-y: auto;
+  flex-direction: column;
+  gap: 2px;
+  width: 190px;
+  flex-shrink: 0;
+  padding: 8px 6px;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  transition: width 0.12s ease;
+}
+.sidebar.collapsed {
+  width: 50px;
+}
+.sidebar a,
+.side-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 9px;
+  border-radius: 6px;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  border: none;
+  text-align: left;
+}
+.sidebar a:hover,
+.side-toggle:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+.sidebar a.on {
+  background: var(--accent-2);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.side-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+.side-toggle {
+  font-size: 16px;
+  width: 100%;
+}
+.side-toggle .side-label {
+  font-size: 13px;
 }
 .app-header {
   display: flex;
@@ -298,28 +355,10 @@ button:focus-visible {
   color: var(--danger);
   border-color: transparent;
 }
-.app-nav {
-  display: flex;
-  gap: 2px;
-  padding: 0 12px;
-  background: var(--panel);
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-}
-.app-nav a {
-  padding: 9px 14px;
-  text-decoration: none;
-  color: var(--muted);
-  border-bottom: 2px solid transparent;
-  white-space: nowrap;
-}
-.app-nav a.on {
-  color: var(--text);
-  border-bottom-color: var(--accent);
-  font-weight: 600;
-}
 .app-main {
+  flex: 1;
   min-width: 0;
+  overflow: auto;
 }
 .page {
   padding: 16px;
@@ -588,7 +627,7 @@ button:focus-visible {
   grid-template-columns: minmax(280px, 380px) 1fr;
   gap: 14px;
   max-width: none;
-  height: calc(100vh - 100px);
+  height: 100%;
 }
 .files-side {
   display: flex;
@@ -910,13 +949,9 @@ svg.dmrs {
 /* ---- workbench feed ---- */
 .feed-page {
   max-width: 1400px;
-  display: flex;
-  flex-direction: column;
-  min-height: calc(100vh - 92px);
-  padding-bottom: 0;
+  padding-top: 0;
 }
 .feed {
-  flex: 1;
   display: flex;
   flex-direction: column;
 }
@@ -924,7 +959,7 @@ svg.dmrs {
   margin-bottom: 8px;
 }
 .feed-empty {
-  margin: auto 0 16px;
+  margin: 4px 0 16px;
 }
 .feed-empty p {
   margin: 6px 0;
@@ -991,15 +1026,15 @@ svg.dmrs {
 }
 .composer-dock {
   position: sticky;
-  bottom: 0;
+  top: 0;
   z-index: 10;
-  padding-bottom: 12px;
-  background: linear-gradient(to bottom, transparent, var(--bg) 18px);
-  padding-top: 18px;
+  padding-top: 16px;
+  padding-bottom: 14px;
+  background: linear-gradient(to top, transparent, var(--bg) 14px);
 }
 .composer {
   margin: 0;
-  box-shadow: 0 -2px 14px rgb(0 0 0 / 8%);
+  box-shadow: 0 2px 14px rgb(0 0 0 / 8%);
 }
 .composer .sentence {
   font-size: 16px;
@@ -1019,7 +1054,7 @@ svg.dmrs {
 }
 .unify-bar {
   padding: 8px 12px;
-  margin-bottom: 8px;
+  margin: 8px 0 0;
 }
 .unify-bar.active {
   border-color: var(--accent);
@@ -1198,6 +1233,9 @@ svg.dmrs {
 }
 
 @media (max-width: 900px) {
+  .sidebar:not(.collapsed) {
+    width: 160px;
+  }
   .files-page {
     grid-template-columns: 1fr;
     height: auto;

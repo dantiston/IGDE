@@ -23,10 +23,10 @@ and a [React](https://react.dev) app is the user interface.
   from the header.
 * **Files**: browse the local disk or the active grammar's source files, view
   and edit TDL with save conflict detection, and recompile after changes.
-* **Workbench**: one running feed, like a console. Parse a sentence,
-  generate from an MRS (paste one, or pick any parse in the feed), or look
-  up a type, lexical entry, rule or instance; each result is appended to the
-  feed:
+* **Workbench**: one running feed. From the input bar at the top, parse a
+  sentence, generate from an MRS (paste one, or pick any parse in the feed),
+  or look up a type, lexical entry, rule or instance; each result is added to
+  the top of the feed:
   * parses: every reading's tree (node labels or rule names) and semantics
     as an MRS AVM, a DMRS graph, or SimpleMRS, DMRS and EDS text, with
     “Generate from this MRS”;
@@ -38,6 +38,9 @@ and a [React](https://react.dev) app is the user interface.
   * interactive unification: click a feature in one feature structure and
     another in a second one, and the result (or the failure, highlighted at
     the failing path) is added to the feed.
+
+The pages are in a sidebar on the left, which collapses to icons with the
+« button or Ctrl/⌘+B.
 
 ## Requirements
 
