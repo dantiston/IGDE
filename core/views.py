@@ -151,6 +151,12 @@ def settings_view(request):
     return {"settings": cfg.to_dict(), "ace": manager.status(cfg).to_dict()}
 
 
+@api("GET")
+def detect_ace(request):
+    """ACE installs found on $ACE_ROOT, $PATH and in Homebrew."""
+    return {"found": environment.detect()}
+
+
 @api("POST")
 def test_ace(request):
     """Validate an ACE_ROOT without saving it."""

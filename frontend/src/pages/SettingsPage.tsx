@@ -5,6 +5,51 @@ import { Modal } from '../components/Modal'
 import { useAction, useApp } from '../state'
 import type { AceStatus, Settings } from '../types'
 
+const SOURCE_LABEL = {
+  settings: 'ACE_ROOT',
+  env: 'the $ACE_ROOT environment variable',
+  path: '$PATH',
+  homebrew: 'Homebrew',
+}
+
+const BREW_INSTALL = 'brew install delph-in/delphin/ace'
+
+function DetectedAce({ onUse }: { onUse: (path: string) => void }) {
+  const [found, setFound] = useState<Awaited<ReturnType<typeof api.detectAce>>['found'] | null>(null)
+  useEffect(() => {
+    api.detectAce().then((r) => setFound(r.found), () => setFound([]))
+  }, [])
+  if (found === null) return null
+  return (
+    <div className="detected">
+      {found.length > 0 ? (
+        <>
+          <div className="muted small">ACE installations found on this machine:</div>
+          <ul>
+            {found.map((f) => (
+              <li key={f.path}>
+                <code>{f.path}</code> <span className="badge">ACE {f.version}</span>{' '}
+                <span className="muted small">({SOURCE_LABEL[f.source]})</span>{' '}
+                <button type="button" className="small" onClick={() => onUse(f.path)}>
+                  Use
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      ) : (
+        <p className="muted small">No ACE installation found on $PATH or in Homebrew.</p>
+      )}
+      <p className="muted small">
+        To install ACE with <a href="https://brew.sh">Homebrew</a> (macOS or Linux): <code>{BREW_INSTALL}</code>{' '}
+        <button type="button" className="small ghost" onClick={() => void navigator.clipboard?.writeText(BREW_INSTALL)}>
+          Copy
+        </button>
+      </p>
+    </div>
+  )
+}
+
 function AceStatusCard({ ace }: { ace: AceStatus }) {
   return (
     <div className={`status-card ${ace.ok ? 'ok' : 'bad'}`} data-testid="ace-status">
@@ -16,8 +61,7 @@ function AceStatusCard({ ace }: { ace: AceStatus }) {
       )}
       {ace.source && (
         <div className="muted">
-          Found via{' '}
-          {ace.source === 'settings' ? 'ACE_ROOT' : ace.source === 'env' ? 'the $ACE_ROOT environment variable' : '$PATH'}
+          Found via {SOURCE_LABEL[ace.source]}
         </div>
       )}
       {ace.error && <div className="error">{ace.error}</div>}
@@ -66,16 +110,18 @@ export function SettingsPage() {
         <p className="muted">
           IGDE drives a local install of the <a href="https://sweaglesw.org/linguistics/ace/">ACE</a> parser/generator. Point
           ACE_ROOT at the directory containing the <code>ace</code> binary (for example an unpacked{' '}
-          <code>ace-0.9.34</code> release) or at the binary itself.
+          <code>ace-0.9.34</code> release or a Homebrew prefix) or at the binary itself. Leave it empty to use{' '}
+          <code>$ACE_ROOT</code>, <code>ace</code> on <code>$PATH</code>, or a Homebrew install.
         </p>
         <AceStatusCard ace={status.ace} />
+        <DetectedAce onUse={(path) => set('aceRoot', path)} />
         <label className="field">
           <span>ACE_ROOT</span>
           <div className="row">
             <input
               value={form.aceRoot}
               onChange={(e) => set('aceRoot', e.target.value)}
-              placeholder={status.envAceRoot ? `$ACE_ROOT (${status.envAceRoot})` : 'empty: use $ACE_ROOT or ace on $PATH'}
+              placeholder={status.envAceRoot ? `$ACE_ROOT (${status.envAceRoot})` : 'empty: find ACE automatically ($PATH, Homebrew)'}
               spellCheck={false}
               aria-label="ACE_ROOT"
             />

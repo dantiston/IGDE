@@ -1,6 +1,6 @@
 export interface AceStatus {
   ok: boolean
-  source: 'settings' | 'env' | 'path' | null
+  source: 'settings' | 'env' | 'path' | 'homebrew' | null
   aceRoot: string | null
   executable: string | null
   version: string | null

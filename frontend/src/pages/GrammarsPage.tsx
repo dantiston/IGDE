@@ -17,7 +17,7 @@ function CompileBadge({ g }: { g: Grammar }) {
 }
 
 function GrammarCard({ g, active }: { g: Grammar; active: boolean }) {
-  const { refresh, notify, navigate } = useApp()
+  const { refresh, notify, navigate, setActiveGrammar } = useApp()
   const [log, setLog] = useState<string | null>(null)
   const act = useAction(async (fn: () => Promise<unknown>) => {
     await fn()
@@ -54,7 +54,7 @@ function GrammarCard({ g, active }: { g: Grammar; active: boolean }) {
       </dl>
       <div className="row wrap">
         {!active && (
-          <button type="button" className="primary" onClick={() => act.run(() => api.activateGrammar(g.id))}>
+          <button type="button" className="primary" onClick={() => act.run(() => setActiveGrammar(g.id))}>
             Use this grammar
           </button>
         )}

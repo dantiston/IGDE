@@ -69,6 +69,8 @@ export const api = {
   saveSettings: (s: Partial<Settings> & { force?: boolean }) =>
     request<{ settings: Settings; ace: AceStatus }>('PUT', '/api/settings', s),
   testAce: (aceRoot: string) => request<AceStatus>('POST', '/api/settings/test-ace', { aceRoot }),
+  detectAce: () =>
+    request<{ found: { source: 'env' | 'path' | 'homebrew'; path: string; version: string }[] }>('GET', '/api/settings/detect-ace'),
 
   fsRoots: () => request<{ roots: { name: string; path: string }[] }>('GET', '/api/fs/roots'),
   fsList: (path?: string, hidden = false) =>

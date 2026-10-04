@@ -23,20 +23,29 @@ and a [React](https://react.dev) app is the user interface.
   from the header.
 * **Files**: browse the local disk or the active grammar's source files, view
   and edit TDL with save conflict detection, and recompile after changes.
-* **Parse**: parse a sentence and see each reading's labelled tree, derivation,
-  and semantics as an MRS AVM, a DMRS graph, or SimpleMRS, DMRS and EDS text.
-* **Generate**: generate from an MRS, e.g. one from a parse result.
-* **TFS Browser**: parse in ACE's LUI mode and click any tree node to see its
-  full feature structure (and MRS); look up types, lexical entries, rules and
-  instances; view the type hierarchy around a type; and unify any two
-  (sub)structures, with failures shown at the failing path.  Definitions link
-  to their TDL source in the editor.
+* **Workbench**: one running feed, like a console. Parse a sentence,
+  generate from an MRS (paste one, or pick any parse in the feed), or look
+  up a type, lexical entry, rule or instance; each result is appended to the
+  feed:
+  * parses: every reading's tree (node labels or rule names) and semantics
+    as an MRS AVM, a DMRS graph, or SimpleMRS, DMRS and EDS text, with
+    “Generate from this MRS”;
+  * realizations, with their trees, each one parseable in turn;
+  * typed feature structures: click any node of a parse tree to add its full
+    feature structure (from ACE's LUI mode) to the feed; definitions link to
+    their TDL source in the editor;
+  * the type hierarchy around a type;
+  * interactive unification: click a feature in one feature structure and
+    another in a second one, and the result (or the failure, highlighted at
+    the failing path) is added to the feed.
 
 ## Requirements
 
 * Python 3.10+
 * Node.js 20+ (only to build the frontend)
-* [ACE](http://sweaglesw.org/linguistics/ace/) 0.9.24+ (Linux or macOS)
+* [ACE](http://sweaglesw.org/linguistics/ace/) 0.9.24+ (Linux or macOS), e.g. from
+  [Homebrew](https://github.com/delph-in/homebrew-delphin):
+  `brew install delph-in/delphin/ace`
 * a grammar, e.g. the [ERG](https://github.com/delph-in/erg)
 
 ## Setup
@@ -56,10 +65,13 @@ cd ..
 
 Then open <http://127.0.0.1:8000/> and:
 
-1. **ACE Settings**: set `ACE_ROOT` to the directory containing the `ace`
-   binary (e.g. an unpacked `ace-0.9.34/`) or to the binary itself, click
-   *Test*, then *Save settings*.  If `ACE_ROOT` is left empty IGDE uses the
-   `$ACE_ROOT` environment variable, then `ace` on `$PATH`.
+1. **ACE Settings**: IGDE finds ACE on its own when `ACE_ROOT` is left
+   empty: from the `$ACE_ROOT` environment variable, `ace` on `$PATH`, or a
+   Homebrew install (`/opt/homebrew`, `/usr/local`, Linuxbrew, including
+   versioned formulas like `ace@0.9.33`); the page lists every ACE it found.
+   Otherwise set `ACE_ROOT` to the directory containing the `ace` binary
+   (e.g. an unpacked `ace-0.9.34/`) or to the binary itself, click *Test*,
+   then *Save settings*.
 2. **Grammars → Add grammar…**: browse to a grammar directory (one with
    `ace/config.tdl` or `config.tdl`) or a compiled `.dat` image and click
    *Add*.  Source grammars are compiled into `~/.igde/grammars/`.
@@ -119,8 +131,9 @@ CSRF token.  Don't expose it to a network.
 
 # VERSION HISTORY
 
-* v2.0: React 19 frontend, Django 5.2; ACE_ROOT configuration and process
-  management; local grammar/file manager with compilation and editing; parse
-  (trees, MRS, DMRS, EDS), generation, and TFS browsing with interactive
+* v2.0: React 19 frontend, Django 5.2; ACE_ROOT configuration (and Homebrew
+  detection) and process management; local grammar/file manager with
+  compilation and editing; a workbench feed of parses (trees, MRS, DMRS,
+  EDS), generations, and typed feature structures with interactive
   unification via ACE's LUI mode.
 * v0.1: basic UI, parsing.

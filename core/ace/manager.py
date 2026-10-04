@@ -114,14 +114,14 @@ class AceManager:
         cfg = cfg or self.config()
         key = (cfg.ace_root, os.environ.get("ACE_ROOT"), os.environ.get("PATH"))
         cached = self._status_cache
+        # Only successful lookups are cached, so that e.g. a fresh
+        # `brew install` is picked up without touching the settings.
         if cached and cached[0] == key:
-            st = cached[1]
-            exe = st.executable
-            if not exe or (Path(exe).exists() and Path(exe).stat().st_mtime == cached[2]):
-                return st
+            exe = cached[1].executable
+            if Path(exe).exists() and Path(exe).stat().st_mtime == cached[2]:
+                return cached[1]
         st = environment.check(cfg.ace_root)
-        mtime = Path(st.executable).stat().st_mtime if st.executable else None
-        self._status_cache = (key, st, mtime)
+        self._status_cache = (key, st, Path(st.executable).stat().st_mtime) if st.ok else None
         return st
 
     def executable(self, cfg=None) -> str:

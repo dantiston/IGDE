@@ -4,7 +4,9 @@ ACE is found, in order of precedence, from:
 
 1. the ACE_ROOT configured in IGDE's settings,
 2. the ``$ACE_ROOT`` environment variable,
-3. ``ace`` on ``$PATH``.
+3. ``ace`` on ``$PATH``,
+4. a Homebrew install (``brew install delph-in/delphin/ace``), which is
+   often missing from the PATH of servers not started from a login shell.
 
 An ACE_ROOT may be the ``ace`` binary itself or a directory containing it
 (an unpacked ACE release such as ``ace-0.9.34/``, or a prefix with
@@ -30,7 +32,7 @@ VERSION_RE = re.compile(r"ACE version ([\d.]+)")
 @dataclass
 class AceStatus:
     ok: bool
-    source: str | None  # "settings" | "env" | "path" | None
+    source: str | None  # "settings" | "env" | "path" | "homebrew" | None
     aceRoot: str | None
     executable: str | None
     version: str | None
@@ -52,7 +54,9 @@ def _candidates(root: Path):
 def find_executable(root: str | os.PathLike) -> Path | None:
     for cand in _candidates(Path(root)):
         if cand.is_file() and os.access(cand, os.X_OK):
-            return cand.resolve()
+            # keep symlinks: Homebrew's bin/ace survives `brew upgrade`,
+            # the Cellar path it points to doesn't
+            return Path(os.path.abspath(cand))
     return None
 
 
@@ -73,20 +77,73 @@ def ace_version(executable: str | os.PathLike) -> str:
     return m.group(1)
 
 
+def homebrew_prefixes() -> list[Path]:
+    prefixes = [os.environ.get("HOMEBREW_PREFIX"), "/opt/homebrew", "/usr/local", "/home/linuxbrew/.linuxbrew"]
+    prefixes.append(str(Path.home() / ".linuxbrew"))
+    out = []
+    for p in prefixes:
+        if p and Path(p) not in out:
+            out.append(Path(p))
+    return out
+
+
+def _version_key(path: Path):
+    # opt/ace@0.9.33 -> (0, 9, 33); the unversioned formula sorts first
+    m = re.search(r"ace@([\d.]+)", str(path))
+    return (1, *(-int(x) for x in m.group(1).split("."))) if m else (0,)
+
+
+def homebrew_executables() -> list[Path]:
+    """ACE binaries installed by Homebrew, newest formula first."""
+    found, seen = [], set()
+    for prefix in homebrew_prefixes():
+        cands = [prefix / "bin" / "ace", prefix / "opt" / "ace" / "bin" / "ace"]
+        cands += sorted((prefix / "opt").glob("ace@*/bin/ace"), key=_version_key)
+        for c in cands:
+            if c.is_file() and os.access(c, os.X_OK) and c.resolve() not in seen:
+                seen.add(c.resolve())
+                found.append(c)
+    return found
+
+
+def detect() -> list[dict]:
+    """Every ACE IGDE can find on this machine (for the settings page)."""
+    seen, out = set(), []
+    cands = []
+    if os.environ.get("ACE_ROOT"):
+        cands.append(("env", os.environ["ACE_ROOT"]))
+    if shutil.which("ace"):
+        cands.append(("path", shutil.which("ace")))
+    cands += [("homebrew", str(p)) for p in homebrew_executables()]
+    for source, root in cands:
+        exe = find_executable(root)
+        if exe is None or exe.resolve() in seen:
+            continue
+        seen.add(exe.resolve())
+        try:
+            version = ace_version(exe)
+        except Exception:  # noqa: BLE001
+            continue
+        out.append({"source": source, "path": str(exe), "version": version})
+    return out
+
+
 def check(ace_root: str | None) -> AceStatus:
     """Resolve and validate ACE given the configured ACE_ROOT (may be empty)."""
     if ace_root:
         source, root = "settings", ace_root
     elif os.environ.get("ACE_ROOT"):
         source, root = "env", os.environ["ACE_ROOT"]
+    elif shutil.which("ace"):
+        source, root = "path", shutil.which("ace")
+    elif homebrew_executables():
+        source, root = "homebrew", str(homebrew_executables()[0])
     else:
-        found = shutil.which("ace")
-        if not found:
-            return AceStatus(
-                False, None, None, None, None,
-                "ACE not configured: set ACE_ROOT to the directory containing the ace binary.",
-            )
-        source, root = "path", found
+        return AceStatus(
+            False, None, None, None, None,
+            "ACE not found: install it (e.g. brew install delph-in/delphin/ace) "
+            "or set ACE_ROOT to the directory containing the ace binary.",
+        )
 
     exe = find_executable(root)
     if exe is None:

@@ -3,15 +3,11 @@ import type { ReactNode } from 'react'
 import { api } from './api'
 import type { Status } from './types'
 
-export const PAGES = ['parse', 'generate', 'tfs', 'grammars', 'files', 'settings'] as const
+export const PAGES = ['workbench', 'grammars', 'files', 'settings'] as const
 export type Page = (typeof PAGES)[number]
 
-/** One-shot hand-offs between pages, e.g. "generate from this MRS". */
-export type Intent =
-  | { page: 'generate'; mrs: string }
-  | { page: 'tfs'; sentence: string; signature?: string[] }
-  | { page: 'files'; path: string; line?: number }
-  | { page: 'parse'; sentence: string }
+/** One-shot hand-offs between pages, e.g. "open this file at this line". */
+export type Intent = { page: 'files'; path: string; line?: number }
 
 export interface Toast {
   id: number
@@ -23,6 +19,8 @@ interface AppState {
   status: Status | null
   statusError: string | null
   refresh: () => Promise<Status | null>
+  /** Switch the active grammar (takes effect in the UI immediately). */
+  setActiveGrammar: (id: number) => Promise<void>
   page: Page
   navigate: (page: Page, intent?: Intent) => void
   takeIntent: <P extends Page>(page: P) => Extract<Intent, { page: P }> | null
@@ -35,7 +33,7 @@ const Ctx = createContext<AppState | null>(null)
 
 function pageFromHash(): Page {
   const h = window.location.hash.replace(/^#\/?/, '').split(/[?/]/)[0]
-  return (PAGES as readonly string[]).includes(h) ? (h as Page) : 'parse'
+  return (PAGES as readonly string[]).includes(h) ? (h as Page) : 'workbench'
 }
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -57,6 +55,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return null
     }
   }, [])
+
+  const setActiveGrammar = useCallback(
+    async (id: number) => {
+      setStatus((s) =>
+        s ? { ...s, settings: { ...s.settings, activeGrammar: id }, activeGrammar: s.grammars.find((g) => g.id === id) ?? s.activeGrammar } : s,
+      )
+      try {
+        await api.activateGrammar(id)
+      } finally {
+        await refresh()
+      }
+    },
+    [refresh],
+  )
 
   useEffect(() => {
     void refresh()
@@ -91,8 +103,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
   )
 
   const value = useMemo(
-    () => ({ status, statusError, refresh, page, navigate, takeIntent, toasts, notify, dismiss }),
-    [status, statusError, refresh, page, navigate, takeIntent, toasts, notify, dismiss],
+    () => ({ status, statusError, refresh, setActiveGrammar, page, navigate, takeIntent, toasts, notify, dismiss }),
+    [status, statusError, refresh, setActiveGrammar, page, navigate, takeIntent, toasts, notify, dismiss],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

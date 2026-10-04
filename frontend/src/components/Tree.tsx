@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { DerivationNode, LabelledNode, LuiTree } from '../types'
+import type { DerivationNode, LabelledNode } from '../types'
 
 /** Generic display tree: what all of IGDE's tree views are converted to. */
 export interface TNode {
@@ -128,37 +128,32 @@ export function TreeView({ root, selected, onSelect, ariaLabel }: TreeProps) {
 
 /* ---- adapters ---- */
 
-export function fromDerivation(d: DerivationNode, path = '0'): TNode {
+const isLeaf = (n: LabelledNode) => n.form !== undefined && !n.children?.length
+
+/**
+ * A parse/realization tree.  Nodes follow the derivation (so a node's key,
+ * its path of daughter indices like "0.1.0", identifies the same edge in
+ * ACE's TFS chart), labelled with ACE's node labels (S, NP, ...) where the
+ * labelled tree lines up with the derivation, and with rule/lexical entry
+ * names otherwise or when `rules` is set.
+ */
+export function fromParse(d: DerivationNode, labelled: LabelledNode | null, rules: boolean, path = '0'): TNode {
   const kids = d.daughters ?? []
+  const labelKids = labelled?.children?.filter((c) => !isLeaf(c)) ?? []
+  const aligned = labelled !== null && labelKids.length === kids.length
+  // grammars without node-label templates get "?" for every node from ACE
+  const label = !rules && labelled?.label && labelled.label !== '?' ? labelled.label : d.entity
   return {
     key: path,
-    label: d.entity,
-    sub: d.type,
+    label,
+    sub: label !== d.entity ? d.entity : d.type,
     form: d.form,
     title: [d.entity, d.id !== undefined ? `edge ${d.id}` : '', d.score !== undefined ? `score ${d.score}` : '', d.start !== undefined ? `${d.start}–${d.end}` : '']
       .filter(Boolean)
       .join(' · '),
-    children: kids.map((k, i) => fromDerivation(k, `${path}.${i}`)),
+    children: kids.map((k, i) => fromParse(k, aligned ? labelKids[i] : null, rules, `${path}.${i}`)),
   }
 }
 
-export function fromLabelled(n: LabelledNode, path = '0'): TNode {
-  const kids = n.children ?? []
-  // A preterminal is a labelled node whose only child is a word.
-  if (kids.length === 1 && kids[0].form !== undefined && !kids[0].children?.length) {
-    return { key: path, label: n.label ?? '', form: kids[0].form, children: [] }
-  }
-  if (n.form !== undefined && !kids.length) return { key: path, label: '', form: n.form, children: [] }
-  return { key: path, label: n.label ?? '', children: kids.map((k, i) => fromLabelled(k, `${path}.${i}`)) }
-}
-
-export function fromLui(t: LuiTree, showRules: boolean): TNode {
-  return {
-    key: String(t.id),
-    label: showRules ? t.entity : t.label,
-    sub: showRules ? undefined : t.entity !== t.label ? t.entity : undefined,
-    form: t.form,
-    title: `${t.entity} · edge ${t.eid} · LUI #${t.id}`,
-    children: t.children.map((c) => fromLui(c, showRules)),
-  }
-}
+/** "0.1.0" -> [1, 0]: daughter indices below the root. */
+export const pathOfKey = (key: string) => key.split('.').slice(1).map(Number)

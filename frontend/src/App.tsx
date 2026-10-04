@@ -1,24 +1,20 @@
-import { api } from './api'
+import { FeedProvider } from './feed/FeedContext'
+import { FeedPage } from './feed/FeedPage'
 import { FilesPage } from './pages/FilesPage'
-import { GeneratePage } from './pages/GeneratePage'
 import { GrammarsPage } from './pages/GrammarsPage'
-import { ParsePage } from './pages/ParsePage'
 import { SettingsPage } from './pages/SettingsPage'
-import { TfsPage } from './pages/TfsPage'
 import { AppProvider, useApp } from './state'
 import type { Page } from './state'
 
 const NAV: { page: Page; label: string }[] = [
-  { page: 'parse', label: 'Parse' },
-  { page: 'generate', label: 'Generate' },
-  { page: 'tfs', label: 'TFS Browser' },
+  { page: 'workbench', label: 'Workbench' },
   { page: 'grammars', label: 'Grammars' },
   { page: 'files', label: 'Files' },
   { page: 'settings', label: 'ACE Settings' },
 ]
 
 function Header() {
-  const { status, statusError, refresh, navigate, notify } = useApp()
+  const { status, statusError, setActiveGrammar, navigate, notify } = useApp()
   const ace = status?.ace
   return (
     <header className="app-header">
@@ -36,8 +32,7 @@ function Header() {
               value={status.settings.activeGrammar ?? ''}
               onChange={async (e) => {
                 try {
-                  await api.activateGrammar(Number(e.target.value))
-                  await refresh()
+                  await setActiveGrammar(Number(e.target.value))
                 } catch (err) {
                   notify((err as Error).message, 'error')
                 }
@@ -108,9 +103,7 @@ function Shell() {
           </div>
         ) : (
           <>
-            {page === 'parse' && <ParsePage />}
-            {page === 'generate' && <GeneratePage />}
-            {page === 'tfs' && <TfsPage />}
+            {page === 'workbench' && <FeedPage />}
             {page === 'grammars' && <GrammarsPage />}
             {page === 'files' && <FilesPage />}
             {page === 'settings' && <SettingsPage />}
@@ -125,7 +118,9 @@ function Shell() {
 export default function App() {
   return (
     <AppProvider>
-      <Shell />
+      <FeedProvider>
+        <Shell />
+      </FeedProvider>
     </AppProvider>
   )
 }

@@ -36,6 +36,11 @@ class ApiTestCase(TestCase):
         env = mock.patch.dict(os.environ, {"PATH": "/nonexistent"})
         env.start()
         self.addCleanup(env.stop)
+        # don't find a real Homebrew ACE on the machine running the tests
+        self.brew_prefixes = []
+        brew = mock.patch("core.ace.environment.homebrew_prefixes", lambda: self.brew_prefixes)
+        brew.start()
+        self.addCleanup(brew.stop)
         os.environ.pop("ACE_ROOT", None)
 
     def call(self, method, url, data=None, **kw):
@@ -98,6 +103,31 @@ class SettingsTests(ApiTestCase):
         with mock.patch.dict(os.environ, {"PATH": str(self.tmp)}):
             manager.settings_changed()
             self.assertEqual(self.call("GET", "/api/status").json()["ace"]["source"], "path")
+
+    def test_homebrew(self):
+        prefix = self.tmp / "homebrew"
+        (prefix / "bin").mkdir(parents=True)
+        (prefix / "opt" / "ace@0.9.31" / "bin").mkdir(parents=True)
+        (prefix / "opt" / "ace@0.9.33" / "bin").mkdir(parents=True)
+        make_fake_ace(prefix / "opt" / "ace@0.9.31" / "bin", "0.9.31")
+        make_fake_ace(prefix / "opt" / "ace@0.9.33" / "bin", "0.9.33")
+        self.brew_prefixes = [prefix]
+        # versioned (keg-only) formulas are found, newest first
+        st = self.call("GET", "/api/status").json()["ace"]
+        self.assertEqual((st["ok"], st["source"], st["version"]), (True, "homebrew", "0.9.33"))
+        found = self.call("GET", "/api/settings/detect-ace").json()["found"]
+        self.assertEqual([f["version"] for f in found], ["0.9.33", "0.9.31"])
+        # the current formula links bin/ace and wins
+        make_fake_ace(prefix / "bin", "0.9.34")
+        manager.settings_changed()
+        self.assertEqual(self.call("GET", "/api/status").json()["ace"]["version"], "0.9.34")
+
+    def test_missing_ace_is_noticed_once_installed(self):
+        self.assertFalse(self.call("GET", "/api/status").json()["ace"]["ok"])
+        self.brew_prefixes = [self.tmp]
+        (self.tmp / "bin").mkdir()
+        make_fake_ace(self.tmp / "bin")
+        self.assertTrue(self.call("GET", "/api/status").json()["ace"]["ok"])
 
     def test_rejects_bad_values(self):
         self.assertEqual(self.call("PUT", "/api/settings", {"maxResults": 0}).status_code, 400)
